@@ -1,0 +1,7 @@
+#!/bin/sh
+# Echipa HACK4ARAD: fără trailer-e de atribuire în commit-uri (Co-Authored-By, Generated with ...).
+msg="$1"
+tmp="$msg.tmp.$$"
+grep -v -i -E '^[[:space:]]*(co-authored-by:|🤖 generated with|generated with \[?claude)' "$msg" > "$tmp" || true
+awk 'NF{last=NR} {line[NR]=$0} END{for(i=1;i<=last;i++) print line[i]}' "$tmp" > "$msg"
+rm -f "$tmp"
