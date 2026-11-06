@@ -11,5 +11,5 @@ Fiecare task își face baza lui: `createdb -h localhost -U arad aradexperience_
 Fără Docker: Postgres 16 local cu rolul `arad` (parola `arad`, `CREATEDB`).
 
 ## Producție (T04 → T16a)
-Aici vin configurațiile de deploy: Render (API din `../AradEx-Backend/Dockerfile`), Netlify (`../AradEx-Frontend`), Neon / Render Postgres.
-Pașii, URL-urile și cine are acces: `../AradEx-Ops/docs/DEPLOY.md`. **Nicio cheie sau parolă în repo.**
+Aici vin configurațiile de deploy: Render (API din repo-ul `AradEx-Backend`, `Dockerfile` la rădăcină, build Gradle `:app:bootJar`), Netlify (`../AradEx-Frontend`), Neon / Render Postgres.
+Pașii, URL-urile și cine are acces: `../AradEx-Plan/docs/DEPLOY.md`. **Nicio cheie sau parolă în repo.**
