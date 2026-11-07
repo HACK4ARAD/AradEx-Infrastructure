@@ -13,6 +13,7 @@
   - **Workflow-ul FE** construiește imaginea nginx din `deploy/Dockerfile` + `deploy/nginx.conf` (fișiere noi în `AradEx-Frontend`) și face deploy ECS; din SSM citește doar `/aradex/web/api_url`.
   - **Expunere:** ALB-ul e expus pe internet doar pe 80 și 443; taskurile și baza de date rămân accesibile doar din ALB, respectiv din API.
   - **Cost:** în plus ~0,5 $/zi (taskul nginx + IP-urile publice ale ALB-ului). Fără CDN, irelevant pentru demo.
+- **Revizia 6 (7 nov):** AI-ul aplicației e **Claude (Anthropic API)**, nu OpenAI, pentru că cheia echipei e de Claude API. Secretul `aradex/openai` devine `aradex/anthropic` (scriptul `set-anthropic-key.sh`), iar containerul primește `ANTHROPIC_API_KEY` și `ANTHROPIC_MODEL` (variabila Terraform `anthropic_model`, implicit `claude-haiku-5-5`) în loc de `OPENAI_*`. Bedrock nu e o alternativă: contul are modelele `NOT_AUTHORIZED`. În tabelele de mai sus, `OPENAI_API_KEY`/`OPENAI_MODEL` se citesc ca `ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL`.
 
 ## 1. Scop și constrângeri
 

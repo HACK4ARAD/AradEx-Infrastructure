@@ -129,7 +129,7 @@ resource "aws_vpc_security_group_ingress_rule" "db_from_task" {
   description                  = "API to Postgres"
 }
 
-# Ieșire liberă: taskul trebuie să ajungă la ECR, Secrets Manager, CloudWatch, OpenAI, OSRM.
+# Ieșire liberă: taskul trebuie să ajungă la ECR, Secrets Manager, CloudWatch, Claude API, OSRM.
 resource "aws_vpc_security_group_egress_rule" "all" {
   for_each          = { alb = aws_security_group.alb.id, task = aws_security_group.task.id, web = aws_security_group.web.id, db = aws_security_group.db.id }
   security_group_id = each.value

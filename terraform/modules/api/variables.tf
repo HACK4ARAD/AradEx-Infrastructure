@@ -34,7 +34,13 @@ variable "jwt_secret_arn" {
   type = string
 }
 
-variable "openai_secret_arn" {
+variable "anthropic_model" {
+  description = "Modelul Claude folosit de chat și planificator (ANTHROPIC_MODEL)."
+  type        = string
+  default     = "claude-haiku-5-5"
+}
+
+variable "anthropic_secret_arn" {
   type = string
 }
 

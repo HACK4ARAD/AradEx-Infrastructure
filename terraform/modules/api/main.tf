@@ -13,7 +13,7 @@ locals {
     portMappings = [{ containerPort = local.container_port, protocol = "tcp" }]
     environment = [
       { name = "SPRING_PROFILES_ACTIVE", value = "prod" },
-      { name = "OPENAI_MODEL", value = "gpt-4o-mini" },
+      { name = "ANTHROPIC_MODEL", value = var.anthropic_model },
       # http://localhost = originea aplicației Android (Capacitor), care apelează API-ul de producție.
       { name = "CORS_ORIGINS", value = var.domain_name != "" ? "https://${var.domain_name},http://localhost" : "http://localhost:5173" },
       # RDS are rds.force_ssl=1, deci conexiunea trebuie să ceară SSL.
@@ -23,7 +23,7 @@ locals {
       { name = "POSTGRES_USER", valueFrom = "${var.db_secret_arn}:username::" },
       { name = "POSTGRES_PASSWORD", valueFrom = "${var.db_secret_arn}:password::" },
       { name = "JWT_SECRET", valueFrom = var.jwt_secret_arn },
-      { name = "OPENAI_API_KEY", valueFrom = var.openai_secret_arn },
+      { name = "ANTHROPIC_API_KEY", valueFrom = var.anthropic_secret_arn },
     ]
     logConfiguration = {
       logDriver = "awslogs"
