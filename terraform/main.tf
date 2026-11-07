@@ -26,3 +26,15 @@ module "api" {
   domain_name         = var.domain_name
   desired_count       = var.api_desired_count
 }
+
+module "edge" {
+  source = "./modules/edge"
+  count  = local.has_domain ? 1 : 0
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+  domain_name  = var.domain_name
+  alb_arn      = module.api.alb_arn
+  alb_dns_name = module.api.alb_dns_name
+}
