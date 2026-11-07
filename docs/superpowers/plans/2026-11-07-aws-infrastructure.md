@@ -386,3 +386,55 @@ README.md (rescris) · .gitignore (+ .terraform/, *.tfstate*, *.tfplan, local.au
   - ștergerea de luni.
 - [ ] **Step 3:** La T04 și T16a, adaugă o notă de o linie: „Deploy pe AWS (CloudFront + Fargate + RDS, Terraform) în loc de Render/Netlify/Neon; vezi `docs/DEPLOY.md` și `AradEx-Infrastructure/README.md`.”
 - [ ] **Step 4:** Commit `docs: aws deploy`. Push și PR-uri **doar când cere Zoltan**.
+
+---
+
+## Revizia 3: GitHub Actions în loc de CodePipeline (7 nov)
+
+**De ce:** cota CodeBuild „Concurrently running builds” a contului e 0 pentru toate mediile (verificat după review). Zoltan a ales GitHub Actions + OIDC și Fargate x86_64. Spec §5 (revizia 3) e autoritatea.
+
+**Înlocuiește:**
+- Task 6: modulul `pipelines` se șterge;
+- partea de pipeline din Task 7: notificările CodeStar dispar;
+- pașii 1–3 din Task 11: în loc de conexiunea GitHub, Zoltan verifică doar că Actions e permis în organizație.
+
+### Task R3-1: Fargate x86_64
+- [ ] Testul `api` cere `runtime_platform[0].cpu_architecture == "X86_64"` → FAIL → schimbă în modulul `api` → PASS. Commit `feat(terraform): fargate x86_64 for native CI builds`.
+
+### Task R3-2: Modulul `github_oidc` (înlocuiește `pipelines`)
+**Interfaces:**
+- Consumes: `github_owner`, `backend_repo`, `frontend_repo`, `branch`, `ecr_repository_arn`, `cluster_name`, `service_name`, `task_execution_role_arn`, `task_role_arn`, `enable_frontend` (bool), `bucket_name`, `bucket_arn`, `distribution_id`, `distribution_arn`, `api_url` (ultimele 5 sunt `null` fără domeniu).
+- Produces: `backend_role_arn` (`arn:aws:iam::712710404828:role/aradex-gha-backend`), `frontend_role_arn` (sau `null`).
+- [ ] **Testele care pică** (`tests/github_oidc.tftest.hcl`):
+  - `oidc_provider` → url `https://token.actions.githubusercontent.com`, `client_id_list == ["sts.amazonaws.com"]`;
+  - `backend_trust` → `aud == sts.amazonaws.com`; `sub == "repo:HACK4ARAD/AradEx-Backend:ref:refs/heads/main"` (StringEquals, nu StringLike);
+  - `backend_perms`:
+    - ECR push doar pe ARN-ul repo-ului + `ecr:GetAuthorizationToken`;
+    - `ecs:UpdateService`/`DescribeServices` doar pe ARN-ul serviciului;
+    - `ecs:RegisterTaskDefinition`/`DescribeTaskDefinition` pe `*`;
+    - `iam:PassRole` doar pe cele 2 roluri de task, cu `iam:PassedToService = ecs-tasks.amazonaws.com`;
+  - `frontend_trust` → `sub == "repo:HACK4ARAD/AradEx-Frontend:ref:refs/heads/main"`;
+  - `frontend_perms` → S3 doar pe bucket-ul site-ului, `cloudfront:CreateInvalidation`/`GetInvalidation` doar pe distribuție, `ssm:GetParameter*` doar pe `/aradex/web/*`;
+  - `ssm_params` → `/aradex/web/bucket`, `/aradex/web/distribution_id`, `/aradex/web/api_url` (`https://aradex.example/api/v1`);
+  - `no_frontend_without_domain` → cu `enable_frontend = false` nu există rolul FE și nici parametrii SSM.
+- [ ] Implementare cu `count = var.enable_frontend ? 1 : 0`. Root: `module "github_oidc"` mereu prezent; `enable_frontend = local.has_domain`; output-urile `gha_backend_role_arn` și `gha_frontend_role_arn`.
+- [ ] Șterge `modules/pipelines`, `tests/pipelines.tftest.hcl`, `module "pipelines"` și output-ul `connection_arn`. Root test `with_domain`: `length(module.edge) == 1`. Commit `feat(terraform): github oidc roles replace codepipeline`.
+
+### Task R3-3: `monitoring` fără pipeline-uri
+- [ ] Testul: politica topicului permite doar `cloudwatch.amazonaws.com`, cu condiția `aws:SourceAccount = 712710404828` (închide și minorul de la review). Nu există `aws_codestarnotifications_notification_rule`. FAIL → elimină `pipeline_arns`, regulile și statement-ul CodeStar → PASS. Commit `refactor(terraform): monitoring without pipeline notifications`.
+
+### Task R3-4: Workflow-urile (în `AradEx-Backend` și `AradEx-Frontend`)
+- [ ] Branch `feat/T04-aws-infra` din `origin/main` în fiecare repo. Un singur fișier: `.github/workflows/deploy.yml`.
+- [ ] **BE** (conform spec §5.1):
+  - acțiunile `actions/checkout@v7`, `actions/setup-java@v6` (temurin 21), `gradle/actions/setup-gradle@v6`, `aws-actions/configure-aws-credentials@v6`, `aws-actions/amazon-ecr-login@v2`, `aws-actions/amazon-ecs-render-task-definition@v1`, `aws-actions/amazon-ecs-deploy-task-definition@v2`;
+  - `permissions: { contents: read, id-token: write }`;
+  - `concurrency: deploy-api`.
+- [ ] **FE** (conform spec §5.2):
+  - acțiunile `actions/setup-node@v7` (22, cache npm) și configure-aws-credentials;
+  - SSM → `$GITHUB_ENV`;
+  - `npm ci`, `npm run test`, `npm run build`;
+  - comenzile S3 / CloudFront cu regulile de cache din spec.
+- [ ] **Verificare:** `actionlint` pe ambele fișiere → fără erori. Commit `ci: deploy to aws on push to main` în fiecare repo. **Fără push** până nu cere Zoltan.
+
+### Task R3-5: README + plan real
+- [ ] README: pasul 5 devine „verifică Actions permis + primul push / Run workflow”, plus redeploy prin `gh workflow run`. `terraform plan` real (doar citire, pe o copie fără backend) → fără erori. Commit `docs(infra): github actions runbook`.

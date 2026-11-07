@@ -1,7 +1,9 @@
 # AradExperience pe AWS: design de infrastructură
 
 **Data:** 7 nov 2026 · **Owner:** Zoltan (P1) · **Repo:** `AradEx-Infrastructure` · **Story-uri:** T04 (deploy v0), T16a (deploy final)
-**Stare:** spec aprobat; revizia 2 (7 nov): **infrastructura se scrie în Terraform, nu în CDK**, la cererea lui Zoltan. Arhitectura nu se schimbă. Diferențele sunt în §3, §4, §9, §10 și §11.
+**Stare:** spec aprobat.
+- **Revizia 2 (7 nov):** infrastructura se scrie în Terraform, nu în CDK, la cererea lui Zoltan.
+- **Revizia 3 (7 nov):** contul are cota CodeBuild „Concurrently running builds” = 0 pentru toate mediile, deci CodePipeline/CodeBuild nu pot rula. La cererea lui Zoltan, **deploy-ul trece pe GitHub Actions cu OIDC**, iar **Fargate trece pe x86_64** (runner-ele GitHub gratuite sunt x86; build nativ cu `Dockerfile`-ul existent). Diferențele sunt în §1, §3, §4, §5, §6, §7, §8, §10.
 
 ## 1. Scop și constrângeri
 
@@ -12,7 +14,7 @@
 - simplu și fără costuri mari, dar solid;
 - durata de viață: **doar weekendul de demo**, se șterge luni;
 - domeniu propriu, **cumpărat extern**, cu DNS-ul în AWS;
-- deploy **automat la merge pe `main`** în `AradEx-Backend` și `AradEx-Frontend`, cu **testele BE rulate în pipeline**;
+- deploy **automat la merge pe `main`** în `AradEx-Backend` și `AradEx-Frontend`, cu **testele BE rulate înainte de deploy** (GitHub Actions);
 - alertele pe email merg la adresa contului lui Zoltan.
 
 **Constrângeri constatate:**
@@ -20,7 +22,8 @@
 - Pe planul gratuit, Route 53 Domains e blocat, deci domeniul se cumpără la un registrar extern.
 - App Runner nu există în `eu-north-1`.
 - Docker nu e instalat local, deci imaginile se construiesc în AWS.
-- Regula echipei: repo-urile de cod nu au workflows și CI/CD stă în `AradEx-Infrastructure`. Designul o respectă: **nimic nou în `AradEx-Backend` sau `AradEx-Frontend`**.
+- Regula echipei spunea că repo-urile de cod nu au workflows. **Revizia 3 o schimbă, la decizia lui Zoltan:** câte un singur fișier nou, `.github/workflows/deploy.yml`, în `AradEx-Backend` și `AradEx-Frontend`. Restul codului lor rămâne neatins.
+- Cota CodeBuild a contului e 0, deci nu folosim CodeBuild/CodePipeline.
 - Fără secrete în git.
 
 **Criterii de reușită:**
@@ -43,7 +46,7 @@
    S3 privat (dist/ al FE), acces doar prin OAC     VPC origin → ALB intern (HTTP :80)
    rutele SPA → /index.html (CloudFront Function)                                  │
                                                                 ▼
-                                       ECS Fargate · 1 task · ARM64 · 0,5 vCPU / 1 GB
+                                       ECS Fargate · 1 task · x86_64 · 0,5 vCPU / 1 GB
                                        subnet public, IP public doar pentru ieșire
                                                                 │ :5432 (SSL)
                                                                 ▼
@@ -83,10 +86,10 @@ Terraform ≥ 1.17, provider-ul `hashicorp/aws` 6.72.x și `hashicorp/random` 3.
 | `data` | eu-north-1 | RDS Postgres 16 (parola gestionată de RDS în Secrets Manager), secretele `aradex/jwt` și `aradex/openai` | network |
 | `api` | eu-north-1 | ECR `aradex-api`, cluster ECS, task definition, serviciu Fargate, ALB intern, target group, log group, rolurile IAM ale taskului | network, data |
 | `edge` | eu-north-1 + `aws.us_east_1` | zona Route 53, certificat ACM (us-east-1) + validarea DNS, bucket S3 (privat, OAC), CloudFront Function, VPC origin, distribuția CloudFront, înregistrări A/AAAA | api |
-| `pipelines` | eu-north-1 | conexiunea GitHub (CodeConnections), pipeline-urile BE și FE, proiectele CodeBuild, bucket-ul de artefacte, rolurile IAM | api, edge |
-| `monitoring` | eu-north-1 | topic SNS (email), alarme CloudWatch, notificări pipeline, buget AWS | api, pipelines (opțional) |
+| `github_oidc` | eu-north-1 | providerul OIDC GitHub în IAM, rolul `aradex-gha-backend` (ECR push + deploy ECS), rolul `aradex-gha-frontend` și parametrii SSM `/aradex/web/*` (aceștia doar cu domeniu) | api, edge |
+| `monitoring` | eu-north-1 | topic SNS (email), alarme CloudWatch, buget AWS | api |
 
-- `edge` și `pipelines` se creează **doar dacă `domain_name` e setat** (`count = var.domain_name == "" ? 0 : 1`). Așa `network`, `data`, `api` și `monitoring` pot porni înainte de cumpărarea domeniului.
+- `edge`, precum și rolul FE și parametrii SSM din `github_oidc`, se creează **doar dacă `domain_name` e setat**. Așa `network`, `data`, `api`, rolul BE și `monitoring` pot porni înainte de cumpărarea domeniului.
 - **Variabile** (în `terraform.tfvars`, fără secrete): `domain_name`, `api_desired_count` (0/1), `github_owner` (`HACK4ARAD`), `backend_repo`, `frontend_repo`, `branch` (`main`).
 - `alert_email` stă într-un `local.auto.tfvars` ignorat de git, sau se dă cu `-var`.
 - **State:** S3 cu lock nativ (`use_lockfile = true`, fără DynamoDB), în bucket-ul `aradex-tfstate-712710404828` (eu-north-1, versionat, criptat, fără acces public). Bucket-ul îl creează o dată un mic root separat, `terraform/bootstrap/`, cu state local.
@@ -103,14 +106,14 @@ Terraform ≥ 1.17, provider-ul `hashicorp/aws` 6.72.x și `hashicorp/random` 3.
 | `CORS_ORIGINS` | `https://<domeniu>` |
 | `SPRING_PROFILES_ACTIVE` | `prod` |
 
-- **Taskul:** 0,5 vCPU / 1 GB, ARM64. `JAVA_OPTS` vine din `Dockerfile`-ul existent.
+- **Taskul:** 0,5 vCPU / 1 GB, x86_64. `JAVA_OPTS` vine din `Dockerfile`-ul existent.
 - **Health check-ul ALB:** `/api/v1/health`, interval 15 s, 2 verificări bune / 3 rele.
 - **Grace period-ul serviciului:** 180 s, pentru Spring Boot + Flyway.
 - **Deployment:** min 100 % / max 200 %, circuit breaker cu rollback activat.
 - **Executarea comenzilor:** ECS Exec e activat, pentru depanare (`aws ecs execute-command`), fără acces public la baza de date.
 - **Logurile** merg în CloudWatch `/aradex/api`, păstrate 7 zile.
-- **Primul deploy:** se face cu `api_desired_count = 0`, pentru că ECR e gol și T01 poate încă să nu compileze. După primul build reușit al pipeline-ului BE, `api_desired_count = 1` și `terraform apply`.
-- **Task definition-ul:** Terraform îl definește cu imaginea `aradex-api:latest`. Pipeline-ul înregistrează revizii noi, cu tag-ul commit-ului. Un `terraform apply` ulterior readuce revizia Terraform, care folosește `:latest`, adică aceeași imagine construită ultima, deci nu pierdem nimic. Asta e intenționat; nu folosim `ignore_changes` pe `task_definition`, ca modificările de variabile din Terraform să ajungă în serviciu.
+- **Primul deploy:** se face cu `api_desired_count = 0`, pentru că ECR e gol și T01 poate încă să nu compileze. După primul deploy reușit din GitHub Actions (care urcă imaginea în ECR), `api_desired_count = 1` și `terraform apply`.
+- **Task definition-ul:** Terraform îl definește cu imaginea `aradex-api:latest`. Workflow-ul BE înregistrează revizii noi, cu tag-ul commit-ului. Un `terraform apply` ulterior readuce revizia Terraform, care folosește `:latest`, adică aceeași imagine construită ultima, deci nu pierdem nimic. Asta e intenționat; nu folosim `ignore_changes` pe `task_definition`, ca modificările de variabile din Terraform să ajungă în serviciu.
 
 **Baza de date:**
 - RDS Postgres 16 (ultima versiune minoră disponibilă), `db.t4g.micro`, Single-AZ, 20 GB gp3, criptată, `rds.force_ssl=1`;
@@ -119,46 +122,45 @@ Terraform ≥ 1.17, provider-ul `hashicorp/aws` 6.72.x și `hashicorp/random` 3.
 - baza inițială se numește `aradexperience`.
 - **Flyway** rulează V1… și seed-urile la fiecare pornire, deci datele de producție sunt identice cu cele locale.
 
-## 5. Fluxul de deploy
+## 5. Fluxul de deploy (GitHub Actions + OIDC)
 
-### 5.1 Backend: `HACK4ARAD/AradEx-Backend`, la push pe `main`
-`Source` (CodeConnections) → `Test` → `Build` → `Deploy`
+GitHub obține credențiale AWS temporare prin OIDC (`token.actions.githubusercontent.com`, audience `sts.amazonaws.com`), deci nu există chei AWS stocate în GitHub. Fiecare rol acceptă **doar** repo-ul și branch-ul lui: `sub = repo:HACK4ARAD/<repo>:ref:refs/heads/main`.
 
-- **Test:** CodeBuild ARM, `BUILD_GENERAL1_SMALL`, imaginea Amazon Linux aarch64 standard, Java 21 (Corretto), cu mod privilegiat pentru Docker. Rulează `./gradlew test --no-daemon`.
-  - Testcontainers folosește oglinda ECR Public (`TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX=public.ecr.aws/docker/library/`) și `TESTCONTAINERS_RYUK_DISABLED=true`.
-  - Rapoartele JUnit apar în CodeBuild Reports.
-  - Un test roșu oprește pipeline-ul.
-- **Build:** CodeBuild ARM, mod privilegiat.
-  - Întâi trage `public.ecr.aws/docker/library/gradle:8.14-jdk21` și `.../eclipse-temurin:21-jre` și le etichetează local ca `gradle:8.14-jdk21` și `eclipse-temurin:21-jre`, ca să evităm limita Docker Hub fără a modifica `Dockerfile`-ul.
-  - Apoi rulează `docker build` fără `--pull`, cu tag-urile `<commit>` și `latest`, face push în ECR și scrie `imagedefinitions.json`.
-- **Deploy:** acțiunea standard ECS. Rolling update; circuit breaker-ul revine automat la versiunea anterioară.
+### 5.1 Backend: `AradEx-Backend/.github/workflows/deploy.yml`, la push pe `main` (+ pornire manuală)
+1. **`test`** (`ubuntu-24.04`, Temurin 21, `gradle/actions/setup-gradle`): `./gradlew test`. Testcontainers folosește Docker-ul runner-ului. Un test roșu oprește workflow-ul.
+2. **`deploy`** (`needs: test`), cu rolul `aradex-gha-backend`:
+   - login ECR, apoi `docker build` cu `Dockerfile`-ul existent și push cu tag-urile `<sha>` și `latest`;
+   - task definition-ul curent `aradex-api` (`describe-task-definition`) cu imaginea nouă, în containerul `api`;
+   - `amazon-ecs-deploy-task-definition` pe serviciul `aradex-api`, cluster `aradex`, cu `wait-for-service-stability`;
+   - rolling update; circuit breaker-ul revine automat la revizia anterioară dacă taskul nou nu trece health check-ul.
+- `concurrency: deploy-api` (deploy-urile nu se suprapun).
 
-### 5.2 Frontend: `HACK4ARAD/AradEx-Frontend`, la push pe `main`
-`Source` → `BuildAndPublish`, un singur proiect CodeBuild (Node 22):
-1. `npm ci` și `npm run build`, cu `VITE_API_URL=https://<domeniu>/api/v1` și `VITE_DEMO=true`.
-2. `aws s3 sync dist/ s3://<bucket> --delete`:
-   - fișierele din `assets/` primesc `Cache-Control: public, max-age=31536000, immutable`;
-   - `index.html`, `sw.js`, `workbox-*.js`, `manifest.webmanifest`, `registerSW.js` primesc `no-cache`.
-3. `aws cloudfront create-invalidation --paths "/*"`.
-
-Buildspec-urile sunt fișiere YAML în `terraform/modules/pipelines/buildspecs/`, citite cu `file()`.
+### 5.2 Frontend: `AradEx-Frontend/.github/workflows/deploy.yml`, la push pe `main` (+ pornire manuală)
+Un singur job (Node 22), cu rolul `aradex-gha-frontend`:
+1. Citește din SSM `/aradex/web/bucket`, `/aradex/web/distribution_id` și `/aradex/web/api_url` (`https://<domeniu>/api/v1`).
+2. Rulează `npm ci`, `npm run test`, apoi `npm run build` cu `VITE_API_URL` din SSM și `VITE_DEMO=true`.
+3. Urcă fișierele în S3 cu aceleași reguli de cache ca înainte:
+   - `assets/`: `max-age=31536000, immutable`, fără ștergere;
+   - restul fișierelor: `max-age=3600`;
+   - `index.html`, `sw.js`, `registerSW.js`, `manifest.webmanifest`, `workbox-*.js`: `no-cache`.
+4. Invalidează CloudFront cu `/*`.
 
 ### 5.3 Ce nu e automat
 - Infrastructura (Terraform) se schimbă **doar** cu `terraform apply` rulat de Zoltan.
-- **Redeploy manual:** butonul „Release change” sau `scripts/redeploy.sh api|web`.
-- **Pas unic manual:** după primul `terraform apply` cu modulul `pipelines`, conexiunea GitHub e „Pending”. Zoltan o activează din consolă și instalează „AWS Connector for GitHub” pe organizația HACK4ARAD, limitat la `AradEx-Backend` și `AradEx-Frontend`. Pentru asta trebuie să fie owner sau admin pe organizație.
+- **Redeploy manual:** butonul „Run workflow” din tab-ul Actions (`workflow_dispatch`) sau `gh workflow run deploy.yml -R HACK4ARAD/<repo>`.
+- **Pas unic:** GitHub Actions trebuie să fie permis în organizația HACK4ARAD (Settings → Actions). Organizațiile gratuite au 2000 de minute pe lună pentru repo-uri private; un deploy BE durează ~6–8 min, unul FE ~2 min.
 
 ## 6. Erori și reziliență
 
 | Situație | Ce se întâmplă |
 |---|---|
-| Test BE roșu | pipeline-ul se oprește la `Test`; versiunea live rămâne; email „pipeline eșuat” |
+| Test BE roșu | workflow-ul se oprește la `test`; versiunea live rămâne; GitHub trimite email autorului commit-ului |
 | Containerul nou nu trece health check-ul | circuit breaker-ul revine la task definition-ul anterior; email |
 | Taskul moare în timpul demo-ului | ECS pornește altul automat (~1–2 min); alarma „0 taskuri sănătoase” trimite email |
-| Build FE eșuat | S3 rămâne cu versiunea anterioară (sync-ul nu rulează) |
+| Build FE eșuat | S3 rămâne cu versiunea anterioară (upload-ul nu rulează) |
 | OpenAI cade sau cheia e greșită | aplicația are deja fallback (`offline: true`), infrastructura nu e afectată |
 | OSRM sau tile-urile OSM cad | fallback-ul din FE (linie dreaptă); infrastructura nu e afectată |
-| Limita Docker Hub | evitată prin oglinda ECR Public |
+| Limita Docker Hub | nu se aplică practic runner-elor GitHub |
 | Credite pe sfârșite | alerte de buget la 20 $ și 50 $ |
 
 ## 7. Monitorizare
@@ -167,7 +169,7 @@ Buildspec-urile sunt fișiere YAML în `terraform/modules/pipelines/buildspecs/`
   - `HealthyHostCount < 1` pe target group, 2 minute;
   - `HTTPCode_Target_5XX_Count ≥ 10` în 5 minute;
   - CPU-ul serviciului ECS > 85 % timp de 10 minute.
-- Notificări pentru pipeline-uri (eșuat sau reușit), pe același topic.
+- Eșecurile de deploy le notifică GitHub (email către autorul commit-ului / watcher-ii repo-ului), nu SNS.
 - Buget lunar de 50 $, cu alerte la 20 $ (40 %) și 50 $ (100 %).
 
 ## 8. Cost (estimat, `eu-north-1`, ~4 zile vineri–luni)
@@ -175,9 +177,9 @@ Buildspec-urile sunt fișiere YAML în `terraform/modules/pipelines/buildspecs/`
 | Resursă | ~ $ / zi | ~ $ / weekend |
 |---|---|---|
 | ALB | 0,6 | 2,5 |
-| Fargate 0,5 vCPU / 1 GB ARM | 0,5 | 2 |
+| Fargate 0,5 vCPU / 1 GB x86 | 0,6 | 2,4 |
 | RDS db.t4g.micro + 20 GB | 0,45 | 1,8 |
-| IPv4 public (task), Secrets Manager (3), Route 53 (zonă), CloudFront, CodeBuild / CodePipeline, CloudWatch | ~0,5 | ~2 |
+| IPv4 public (task), Secrets Manager (3), Route 53 (zonă), CloudFront, SSM, CloudWatch (GitHub Actions: gratuit, în cele 2000 min/lună) | ~0,5 | ~2 |
 | **Total** | **~2** | **~8–10** |
 
 Totul vine din cele 100 $ de credite. Domeniul extern se plătește separat, la registrar.
@@ -191,14 +193,14 @@ Totul vine din cele 100 $ de credite. Domeniul extern se plătește separat, la 
 ## 10. Ce se schimbă în repo-uri
 - **`AradEx-Infrastructure`:**
   - `terraform/` (root-ul, `bootstrap/`, `modules/` din §3, `tests/`);
-  - buildspec-urile în `terraform/modules/pipelines/buildspecs/` (`api-test.yml`, `api-build.yml`, `web.yml`);
   - `scripts/` (`set-openai-key.sh`, `redeploy.sh`, `destroy.sh`);
   - README actualizat (pași de la zero la live);
   - `.gitignore` pentru `.terraform/`, `*.tfstate*`, `*.tfplan`, `local.auto.tfvars`. Lock file-ul `.terraform.lock.hcl` **intră** în git.
 - **`AradEx-Plan`:**
   - `docs/DEPLOY.md` rescris pentru AWS (URL-uri, acces, redeploy, ștergere);
   - o notă la T04 și T16a în `docs/PLAN.md` că deploy-ul e pe AWS în loc de Render / Netlify / Neon.
-- **`AradEx-Backend`, `AradEx-Frontend`:** fără modificări.
+- **`AradEx-Backend`, `AradEx-Frontend`:** doar `.github/workflows/deploy.yml` (revizia 3).
+- **`AradEx-Plan/CLAUDE.md`:** regula „repo-urile de cod nu au workflows” se actualizează (excepție: `deploy.yml`).
 
 ## 11. Testare și verificare
 - `terraform fmt -check -recursive` și `terraform validate`.
@@ -210,7 +212,7 @@ Totul vine din cele 100 $ de credite. Domeniul extern se plătește separat, la 
   - `/m` se încarcă pe telefon;
   - scannerul QR cere permisiunea camerei.
 - **Test de rollback** (o dată, sâmbătă): un deploy cu imagine care nu pornește → serviciul revine singur, iar alarma și emailul sosesc.
-- **Test de pipeline:** un commit banal pe `main` în FE ajunge live în ≤ 5 min.
+- **Test de deploy:** un commit banal pe `main` în FE ajunge live în ≤ 5 min.
 
 ## 12. În afara scopului
 Multi-AZ, WAF, autoscaling, staging separat, acces AWS pentru colegi, bastion sau tunel spre baza de date, CDN pentru imagini încărcate de utilizatori (aplicația nu are upload în v1).
