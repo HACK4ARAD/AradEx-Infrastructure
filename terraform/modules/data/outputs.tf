@@ -16,6 +16,6 @@ output "jwt_secret_arn" {
   value = aws_secretsmanager_secret.jwt.arn
 }
 
-output "openai_secret_arn" {
-  value = aws_secretsmanager_secret.openai.arn
+output "anthropic_secret_arn" {
+  value = aws_secretsmanager_secret.anthropic.arn
 }

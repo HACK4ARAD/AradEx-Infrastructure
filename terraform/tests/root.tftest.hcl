@@ -40,8 +40,9 @@ run "defaults_ok" {
     error_message = "repo defaults"
   }
   assert {
-    condition     = var.branch == "main" && var.api_desired_count == 0 && var.domain_name == ""
-    error_message = "branch/count/domain defaults"
+    # api_desired_count nu se verifică aici: terraform test citește și terraform.tfvars (unde e 1 în producție).
+    condition     = var.branch == "main" && var.domain_name == "" && var.anthropic_model == "claude-haiku-5-5"
+    error_message = "branch/domain/model defaults"
   }
 }
 

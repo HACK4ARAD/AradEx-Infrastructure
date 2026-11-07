@@ -1,4 +1,4 @@
-# Postgres 16 izolat + secretele aplicației.
+# Postgres 16 izolat + secretele aplicației (JWT generat; cheia Claude API pusă manual de Zoltan).
 terraform {
   required_providers {
     aws    = { source = "hashicorp/aws" }
@@ -67,15 +67,15 @@ resource "aws_secretsmanager_secret_version" "jwt" {
   secret_string = random_password.jwt.result
 }
 
-resource "aws_secretsmanager_secret" "openai" {
-  name                    = "aradex/openai"
-  description             = "OPENAI_API_KEY - valoarea reală se pune cu scripts/set-openai-key.sh"
+resource "aws_secretsmanager_secret" "anthropic" {
+  name                    = "aradex/anthropic"
+  description             = "ANTHROPIC_API_KEY (Claude API) - valoarea reala se pune cu scripts/set-anthropic-key.sh"
   recovery_window_in_days = 0
 }
 
 # Placeholder intenționat. Cheia reală o pune Zoltan cu scriptul; Terraform nu o suprascrie și nu o vede.
-resource "aws_secretsmanager_secret_version" "openai" {
-  secret_id     = aws_secretsmanager_secret.openai.id
+resource "aws_secretsmanager_secret_version" "anthropic" {
+  secret_id     = aws_secretsmanager_secret.anthropic.id
   secret_string = "REPLACE_ME"
 
   lifecycle {

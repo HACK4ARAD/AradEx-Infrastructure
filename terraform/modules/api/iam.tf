@@ -29,7 +29,7 @@ resource "aws_iam_role_policy" "execution_secrets" {
     Statement = [{
       Effect   = "Allow"
       Action   = "secretsmanager:GetSecretValue"
-      Resource = [var.db_secret_arn, var.jwt_secret_arn, var.openai_secret_arn]
+      Resource = [var.db_secret_arn, var.jwt_secret_arn, var.anthropic_secret_arn]
     }]
   })
 }

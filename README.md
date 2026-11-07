@@ -21,7 +21,7 @@ terraform/
   *.tf              root-ul: variabile, provider-e (eu-north-1 + us-east-1), backend S3, module
   modules/          network · data · api (ALB, listeneri, API) · web (nginx cu PWA-ul) · edge (zona DNS, certificat) · github_deploy (utilizatori IAM pentru GitHub Actions) · monitoring
   tests/            terraform test (mock-uri, fără credențiale)
-scripts/            set-openai-key.sh · github-keys.sh · redeploy.sh · destroy.sh
+scripts/            set-anthropic-key.sh · github-keys.sh · redeploy.sh · destroy.sh
 ```
 
 ### De la zero la live
@@ -41,7 +41,7 @@ Toate comenzile se dau din rădăcina repo-ului, cu `export AWS_PROFILE=aws-tool
    terraform -chdir=terraform init
    terraform -chdir=terraform plan -out=phase1.tfplan
    terraform -chdir=terraform apply phase1.tfplan
-   ./scripts/set-openai-key.sh
+   ./scripts/set-anthropic-key.sh       # cheia Claude API (ANTHROPIC_API_KEY); modelul: anthropic_model, implicit claude-haiku-5-5
    ```
 4. **Domeniul.** După cumpărare, pune `domain_name = "<domeniu>"` în `terraform/terraform.tfvars`, apoi:
    ```
@@ -93,5 +93,6 @@ node --test terraform/modules/edge/functions/
 | `domain_name` | `""` | domeniul; până e setat, HTTPS-ul, serviciul web, utilizatorul GitHub pentru FE și parametrul SSM nu se creează |
 | `api_desired_count` | `0` | 0 până există o imagine în ECR `aradex-api`, apoi 1 |
 | `web_desired_count` | `0` | 0 până există o imagine în ECR `aradex-web`, apoi 1 |
+| `anthropic_model` | `claude-haiku-5-5` | modelul Claude pentru chat și planificator (`ANTHROPIC_MODEL`) |
 | `alert_email` | — | în `local.auto.tfvars`; alertele și bugetul |
 | `github_owner`, `backend_repo`, `frontend_repo`, `branch` | `HACK4ARAD`, `AradEx-Backend`, `AradEx-Frontend`, `main` | singurele repo-uri și branch care pot asuma rolurile OIDC |

@@ -41,6 +41,12 @@ variable "web_desired_count" {
   }
 }
 
+variable "anthropic_model" {
+  description = "Modelul Claude pentru chat și planificator (T12/T13)."
+  type        = string
+  default     = "claude-haiku-5-5"
+}
+
 variable "github_owner" {
   description = "Organizația GitHub cu repo-urile de cod."
   type        = string

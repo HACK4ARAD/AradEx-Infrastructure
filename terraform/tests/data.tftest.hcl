@@ -56,11 +56,11 @@ run "data" {
     error_message = "jwt secret"
   }
   assert {
-    condition     = aws_secretsmanager_secret.openai.name == "aradex/openai" && aws_secretsmanager_secret_version.openai.secret_string == "REPLACE_ME"
-    error_message = "openai placeholder"
+    condition     = aws_secretsmanager_secret.anthropic.name == "aradex/anthropic" && aws_secretsmanager_secret_version.anthropic.secret_string == "REPLACE_ME"
+    error_message = "anthropic (Claude API) key placeholder"
   }
   assert {
-    condition     = aws_secretsmanager_secret.jwt.recovery_window_in_days == 0 && aws_secretsmanager_secret.openai.recovery_window_in_days == 0
+    condition     = aws_secretsmanager_secret.jwt.recovery_window_in_days == 0 && aws_secretsmanager_secret.anthropic.recovery_window_in_days == 0
     error_message = "immediate secret deletion"
   }
   assert {
