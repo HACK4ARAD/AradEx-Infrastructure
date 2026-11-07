@@ -34,8 +34,9 @@ locals {
       { name = "SMS_GATEWAY_TOKEN", valueFrom = "${var.sms_gateway_secret_arn}:token::" },
       { name = "STRIPE_SECRET_KEY", valueFrom = "${var.stripe_secret_arn}:secret_key::" },
       { name = "STRIPE_PUBLISHABLE_KEY", valueFrom = "${var.stripe_secret_arn}:publishable_key::" },
-      # STRIPE_WEBHOOK_SECRET (cheia webhook_secret) se adaugă după ce intră webhook-ul în backend (BE #28) și cheia e scrisă
-      # cu scripts/set-stripe-keys.sh: o cheie JSON lipsă din secret oprește pornirea task-ului ECS.
+      # T25: semnătura webhook-ului Stripe (BE #28). Cheia webhook_secret trebuie să existe în secret (poate fi goală):
+      # o cheie JSON lipsă oprește pornirea task-ului ECS; scripts/set-stripe-keys.sh o scrie mereu.
+      { name = "STRIPE_WEBHOOK_SECRET", valueFrom = "${var.stripe_secret_arn}:webhook_secret::" },
     ]
     logConfiguration = {
       logDriver = "awslogs"
