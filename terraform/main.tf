@@ -39,24 +39,23 @@ module "edge" {
   alb_dns_name = module.api.alb_dns_name
 }
 
-module "pipelines" {
-  source                  = "./modules/pipelines"
-  count                   = local.has_domain ? 1 : 0
+module "github_oidc" {
+  source                  = "./modules/github_oidc"
   github_owner            = var.github_owner
   backend_repo            = var.backend_repo
   frontend_repo           = var.frontend_repo
   branch                  = var.branch
-  domain_name             = var.domain_name
-  ecr_repository_url      = module.api.ecr_repository_url
   ecr_repository_arn      = module.api.ecr_repository_arn
   cluster_name            = module.api.cluster_name
   service_name            = module.api.service_name
   task_execution_role_arn = module.api.task_execution_role_arn
   task_role_arn           = module.api.task_role_arn
-  bucket_name             = module.edge[0].bucket_name
-  bucket_arn              = module.edge[0].bucket_arn
-  distribution_id         = module.edge[0].distribution_id
-  distribution_arn        = module.edge[0].distribution_arn
+  enable_frontend         = local.has_domain
+  bucket_name             = one(module.edge[*].bucket_name)
+  bucket_arn              = one(module.edge[*].bucket_arn)
+  distribution_id         = one(module.edge[*].distribution_id)
+  distribution_arn        = one(module.edge[*].distribution_arn)
+  api_url                 = local.has_domain ? "https://${var.domain_name}/api/v1" : null
 }
 
 module "monitoring" {
@@ -67,5 +66,4 @@ module "monitoring" {
   target_group_arn_suffix = module.api.target_group_arn_suffix
   cluster_name            = module.api.cluster_name
   service_name            = module.api.service_name
-  pipeline_arns           = local.has_domain ? [module.pipelines[0].backend_pipeline_arn, module.pipelines[0].frontend_pipeline_arn] : []
 }

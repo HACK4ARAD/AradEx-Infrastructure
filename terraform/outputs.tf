@@ -27,7 +27,12 @@ output "distribution_id" {
   value = one(module.edge[*].distribution_id)
 }
 
-output "connection_arn" {
-  description = "Conexiunea GitHub (PENDING până o activezi din consolă)."
-  value       = one(module.pipelines[*].connection_arn)
+output "gha_backend_role_arn" {
+  description = "role-to-assume pentru workflow-ul AradEx-Backend."
+  value       = module.github_oidc.backend_role_arn
+}
+
+output "gha_frontend_role_arn" {
+  description = "role-to-assume pentru workflow-ul AradEx-Frontend (după ce există domeniul)."
+  value       = module.github_oidc.frontend_role_arn
 }
