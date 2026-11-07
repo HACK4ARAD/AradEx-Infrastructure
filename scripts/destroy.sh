@@ -4,7 +4,7 @@ set -euo pipefail
 export AWS_PROFILE="${AWS_PROFILE:-aws-toolkit}" AWS_REGION=eu-north-1
 cd "$(dirname "$0")/../terraform"
 
-echo "Asta șterge VPC-ul, baza de date (cu snapshot final aradex-final), API-ul, CloudFront, rolurile GitHub Actions și alertele."
+echo "Asta șterge VPC-ul, baza de date (cu snapshot final aradex-final), API-ul, PWA-ul, ALB-ul, utilizatorii GitHub Actions și alertele."
 read -rp "Scrie DESTROY ca să continui: " answer
 if [[ "$answer" != "DESTROY" ]]; then
   echo "Anulat."

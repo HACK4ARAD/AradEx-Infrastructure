@@ -11,7 +11,7 @@ Fiecare task își face baza lui: `createdb -h localhost -U arad aradexperience_
 Fără Docker: Postgres 16 local cu rolul `arad` (parola `arad`, `CREATEDB`).
 
 ## AWS (Terraform)
-Un singur domeniu cu HTTPS: CloudFront servește `/` din S3 (PWA-ul) și trimite `/api/*` spre un ALB intern → Fargate (API). Baza de date e RDS Postgres 16, izolată de internet. GitHub Actions face deploy la fiecare merge pe `main`, cu cheile a doi utilizatori IAM dedicați, cu permisiuni înguste (organizația AWS interzice OIDC): `AradEx-Backend` (teste → imagine → ECS) și `AradEx-Frontend` (teste + build → S3 → invalidare). Workflow-urile sunt în `.github/workflows/deploy.yml` din fiecare repo.
+Un singur domeniu cu HTTPS, direct pe un ALB public (certificat ACM în `eu-north-1`): `/api/*`, `/swagger-ui*` și `/v3/api-docs*` merg la API (Spring, Fargate), restul la PWA (nginx, Fargate); HTTP și `www` redirecționează spre `https://<domeniu>`. Baza de date e RDS Postgres 16, izolată de internet. **Fără CloudFront:** contul nu poate crea distribuții până nu e verificat de AWS Support. GitHub Actions face deploy la fiecare merge pe `main`, cu cheile a doi utilizatori IAM dedicați, cu permisiuni înguste (organizația AWS interzice OIDC): `AradEx-Backend` (teste → imagine → ECS) și `AradEx-Frontend` (teste + build → imagine nginx → ECS). Workflow-urile sunt în `.github/workflows/deploy.yml` din fiecare repo.
 
 Cont `712710404828`, regiunea `eu-north-1`, profilul `aws-toolkit`. **Nicio cheie sau parolă în repo.**
 
@@ -19,7 +19,7 @@ Cont `712710404828`, regiunea `eu-north-1`, profilul `aws-toolkit`. **Nicio chei
 terraform/
   bootstrap/        bucket-ul pentru state (rulat o singură dată, state local)
   *.tf              root-ul: variabile, provider-e (eu-north-1 + us-east-1), backend S3, module
-  modules/          network · data · api · edge (domeniu, cert, CloudFront) · github_deploy (utilizatori IAM pentru GitHub Actions) · monitoring
+  modules/          network · data · api (ALB, listeneri, API) · web (nginx cu PWA-ul) · edge (zona DNS, certificat) · github_deploy (utilizatori IAM pentru GitHub Actions) · monitoring
   tests/            terraform test (mock-uri, fără credențiale)
 scripts/            set-openai-key.sh · github-keys.sh · redeploy.sh · destroy.sh
 ```
@@ -52,7 +52,7 @@ Toate comenzile se dau din rădăcina repo-ului, cu `export AWS_PROFILE=aws-tool
    terraform -chdir=terraform apply edge.tfplan     # certificatul se validează în câteva minute
    ```
 5. **Deploy automat (GitHub Actions):**
-   - aplică restul: `terraform -chdir=terraform plan -out=all.tfplan`, apoi `apply all.tfplan` (utilizatorul FE și parametrii SSM `/aradex/web/*`);
+   - aplică restul: `terraform -chdir=terraform plan -out=all.tfplan`, apoi `apply all.tfplan` (certificat, HTTPS, serviciul web, utilizatorul FE, parametrul SSM `/aradex/web/api_url`);
    - pe GitHub: HACK4ARAD → Settings → Actions → permite rularea workflow-urilor;
    - pune cheile în secretele repo-urilor (nu apar pe ecran; cheile vechi se șterg): `./scripts/github-keys.sh api` și `./scripts/github-keys.sh web`. Scriptul cere `gh` autentificat cu acces la organizația HACK4ARAD;
    - fă merge la workflow-urile din branch-urile `feat/T04-aws-infra` din `AradEx-Backend` și `AradEx-Frontend`, sau pornește-le manual:
@@ -60,7 +60,7 @@ Toate comenzile se dau din rădăcina repo-ului, cu `export AWS_PROFILE=aws-tool
      gh workflow run deploy.yml -R HACK4ARAD/AradEx-Frontend
      gh workflow run deploy.yml -R HACK4ARAD/AradEx-Backend
      ```
-6. **Pornește API-ul**, după primul workflow BE reușit (imaginea e în ECR; cu 0 taskuri, pasul ECS trece fără să pornească nimic): `api_desired_count = 1` în `terraform.tfvars`, apoi `plan` + `apply`.
+6. **Pornește containerele**, după primul workflow reușit al fiecărui repo (imaginea e în ECR; cu 0 taskuri, pasul ECS trece fără să pornească nimic): `api_desired_count = 1` și `web_desired_count = 1` în `terraform.tfvars`, apoi `plan` + `apply`.
 7. **Confirmă emailul** de la AWS SNS (alertele).
 
 ### Redeploy
@@ -69,7 +69,7 @@ Toate comenzile se dau din rădăcina repo-ului, cu `export AWS_PROFILE=aws-tool
 - Infrastructura se schimbă doar cu `terraform plan` + `apply`, rulate de Zoltan.
 
 ### Depanare
-- Swagger (`https://<domeniu>/swagger-ui.html`) arată documentația, dar „Try it out” nu merge prin CloudFront: Spring vede adresa internă a ALB-ului. Testează cu `curl` sau din aplicație. Dacă PWA-ul e instalat în browser, deschide Swagger într-o fereastră privată (service worker-ul redirecționează navigarea spre aplicație).
+- Swagger (`https://<domeniu>/swagger-ui.html`) arată documentația; „Try it out” poate încerca `http://` (Spring nu citește `X-Forwarded-Proto`) și browserul îl blochează. Testează cu `curl` sau din aplicație. Dacă PWA-ul e instalat în browser, deschide Swagger într-o fereastră privată (service worker-ul redirecționează navigarea spre aplicație).
 - Loguri API: CloudWatch `/aradex/api`. Loguri deploy: tab-ul Actions din `AradEx-Backend` / `AradEx-Frontend`.
 - Shell în containerul API: `aws ecs execute-command --cluster aradex --task <task-id> --container api --interactive --command sh`.
 
@@ -83,14 +83,15 @@ node --test terraform/modules/edge/functions/
 ```
 
 ### Ștergere (după demo)
-`./scripts/destroy.sh` cere confirmarea `DESTROY` și șterge tot. Dacă ștergerea VPC-ului pică cu `DependencyViolation`, rulează scriptul din nou: CloudFront eliberează cu întârziere interfețele de rețea ale VPC origin-ului. Rămân:
+`./scripts/destroy.sh` cere confirmarea `DESTROY` și șterge tot. Dacă ștergerea VPC-ului pică cu `DependencyViolation`, rulează scriptul din nou (interfețele de rețea ale ALB-ului se eliberează cu întârziere). Rămân:
 - snapshot-ul final RDS `aradex-final`;
 - bucket-ul de state, pe care îl ștergi la final cu `terraform -chdir=terraform/bootstrap destroy`, după ce îl golești.
 
 ### Variabile (`terraform/terraform.tfvars`, fără secrete)
 | Variabilă | Implicit | Ce face |
 |---|---|---|
-| `domain_name` | `""` | domeniul; până e setat, CloudFront, rolul GitHub pentru FE și parametrii SSM nu se creează |
-| `api_desired_count` | `0` | 0 până există o imagine în ECR, apoi 1 |
+| `domain_name` | `""` | domeniul; până e setat, HTTPS-ul, serviciul web, utilizatorul GitHub pentru FE și parametrul SSM nu se creează |
+| `api_desired_count` | `0` | 0 până există o imagine în ECR `aradex-api`, apoi 1 |
+| `web_desired_count` | `0` | 0 până există o imagine în ECR `aradex-web`, apoi 1 |
 | `alert_email` | — | în `local.auto.tfvars`; alertele și bugetul |
 | `github_owner`, `backend_repo`, `frontend_repo`, `branch` | `HACK4ARAD`, `AradEx-Backend`, `AradEx-Frontend`, `main` | singurele repo-uri și branch care pot asuma rolurile OIDC |
