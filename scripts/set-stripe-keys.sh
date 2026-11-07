@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# T25: pune cheile Stripe de TEST în Secrets Manager (aradex/stripe) și repornește API-ul ca să le citească (ajung în container ca
-# STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET). Se tastează: nu apar pe ecran.
+# T07 / T25: pune cheile Stripe de TEST în Secrets Manager (aradex/stripe) și repornește API-ul ca să le citească (ajung în container
+# ca STRIPE_SECRET_KEY și STRIPE_PUBLISHABLE_KEY; webhook_secret se scrie mereu, gol dacă n-ai încă webhook, pentru BE #28).
+# Se tastează: nu apar pe ecran.
 # Unde le găsești: dashboard.stripe.com → comutatorul „Test mode” pornit → Developers → API keys (pk_test_…, sk_test_…);
 # Developers → Webhooks → Add endpoint https://aradexperience.site/api/v1/payments/stripe/webhook, evenimentul
 # payment_intent.succeeded → „Signing secret” (whsec_…). Cheile live (sk_live_/pk_live_) sunt refuzate aici și de backend.

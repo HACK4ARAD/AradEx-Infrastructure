@@ -118,6 +118,23 @@ resource "aws_secretsmanager_secret_version" "twilio" {
   }
 }
 
+# T07 / T25: plata biletelor în modul de test Stripe. JSON cu chei goale ca placeholder: backend-ul face plata demonstrativă până pune
+# Zoltan cheile de test (sk_test_… / pk_test_…, opțional whsec_… pentru webhook) cu scripts/set-stripe-keys.sh. Cheile live sunt refuzate.
+resource "aws_secretsmanager_secret" "stripe" {
+  name                    = "aradex/stripe"
+  description             = "Stripe test mode (T07/T25): secret_key (sk_test_), publishable_key (pk_test_), webhook_secret (whsec_, optional) - se pun cu scripts/set-stripe-keys.sh"
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "stripe" {
+  secret_id     = aws_secretsmanager_secret.stripe.id
+  secret_string = jsonencode({ secret_key = "", publishable_key = "", webhook_secret = "" })
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
+}
+
 # T24: SMS-urile OTP trimise de pe telefonul lui Zoltan (Mac + iPhone, AradEx-Ops/sms-gateway). Tokenul cu care scriptul
 # de pe Mac ia SMS-urile din coada API-ului; îl generează și îl pune AradEx-Ops/sms-gateway/setup.sh. Gol = gateway oprit
 # (numerele reale merg prin Twilio).
@@ -130,23 +147,6 @@ resource "aws_secretsmanager_secret" "sms_gateway" {
 resource "aws_secretsmanager_secret_version" "sms_gateway" {
   secret_id     = aws_secretsmanager_secret.sms_gateway.id
   secret_string = jsonencode({ token = "" })
-
-  lifecycle {
-    ignore_changes = [secret_string]
-  }
-}
-
-# T25: plata biletelor cu cardul prin Stripe, DOAR în mod test (backend-ul refuză cheile live). Chei goale = plata demonstrativă;
-# le pune Zoltan cu scripts/set-stripe-keys.sh (sk_test_…, pk_test_…, whsec_… din Dashboard-ul Stripe, „Test mode”).
-resource "aws_secretsmanager_secret" "stripe" {
-  name                    = "aradex/stripe"
-  description             = "Stripe test mode (T25): secret_key, publishable_key, webhook_secret - se pun cu scripts/set-stripe-keys.sh"
-  recovery_window_in_days = 0
-}
-
-resource "aws_secretsmanager_secret_version" "stripe" {
-  secret_id     = aws_secretsmanager_secret.stripe.id
-  secret_string = jsonencode({ secret_key = "", publishable_key = "", webhook_secret = "" })
 
   lifecycle {
     ignore_changes = [secret_string]

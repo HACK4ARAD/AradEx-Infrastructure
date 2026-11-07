@@ -78,12 +78,12 @@ variable "twilio_secret_arn" {
   type        = string
 }
 
-variable "sms_gateway_secret_arn" {
-  description = "Gateway-ul de SMS (T24): secret JSON cu token, injectat ca SMS_GATEWAY_TOKEN (gol = gateway oprit)."
+variable "stripe_secret_arn" {
+  description = "Stripe test mode (T07/T25): secret JSON cu secret_key și publishable_key, injectate ca STRIPE_* (goale = plata demonstrativă); webhook_secret stă în secret pentru webhook (BE #28), încă neinjectat."
   type        = string
 }
 
-variable "stripe_secret_arn" {
-  description = "Stripe mod test (T25): secret JSON cu secret_key, publishable_key, webhook_secret, injectate ca STRIPE_* (goale = plata demonstrativă)."
+variable "sms_gateway_secret_arn" {
+  description = "Gateway-ul de SMS (T24): secret JSON cu token, injectat ca SMS_GATEWAY_TOKEN (gol = gateway oprit)."
   type        = string
 }
