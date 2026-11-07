@@ -11,10 +11,6 @@ variables {
   target_group_arn_suffix = "targetgroup/aradex-api/0123456789abcdef"
   cluster_name            = "aradex"
   service_name            = "aradex-api"
-  pipeline_arns = [
-    "arn:aws:codepipeline:eu-north-1:712710404828:aradex-backend",
-    "arn:aws:codepipeline:eu-north-1:712710404828:aradex-frontend",
-  ]
 }
 
 run "monitoring" {
@@ -28,8 +24,12 @@ run "monitoring" {
     error_message = "email subscription"
   }
   assert {
-    condition     = toset(flatten([for s in jsondecode(aws_sns_topic_policy.alerts.policy).Statement : s.Principal.Service])) == toset(["codestar-notifications.amazonaws.com", "cloudwatch.amazonaws.com"])
-    error_message = "topic policy allows codestar-notifications and cloudwatch"
+    condition = (
+      length(jsondecode(aws_sns_topic_policy.alerts.policy).Statement) == 1 &&
+      jsondecode(aws_sns_topic_policy.alerts.policy).Statement[0].Principal.Service == "cloudwatch.amazonaws.com" &&
+      jsondecode(aws_sns_topic_policy.alerts.policy).Statement[0].Condition.StringEquals["aws:SourceAccount"] == "712710404828"
+    )
+    error_message = "topic policy: only CloudWatch from this account"
   }
   assert {
     condition = (
@@ -71,13 +71,6 @@ run "monitoring" {
   }
   assert {
     condition = (
-      length(aws_codestarnotifications_notification_rule.pipeline) == 2 &&
-      alltrue([for r in aws_codestarnotifications_notification_rule.pipeline : r.event_type_ids == toset(["codepipeline-pipeline-pipeline-execution-failed", "codepipeline-pipeline-pipeline-execution-succeeded"])])
-    )
-    error_message = "pipeline notification rules"
-  }
-  assert {
-    condition = (
       aws_budgets_budget.monthly.limit_amount == "50" &&
       aws_budgets_budget.monthly.limit_unit == "USD" &&
       toset([for n in aws_budgets_budget.monthly.notification : n.threshold]) == toset([40, 100]) &&
@@ -94,10 +87,9 @@ run "no_healthy_alarm_when_stopped" {
   }
   variables {
     api_desired_count = 0
-    pipeline_arns     = []
   }
   assert {
-    condition     = length(aws_cloudwatch_metric_alarm.healthy_hosts) == 0 && length(aws_codestarnotifications_notification_rule.pipeline) == 0
-    error_message = "no healthy-host alarm at 0 tasks, no pipeline rules without pipelines"
+    condition     = length(aws_cloudwatch_metric_alarm.healthy_hosts) == 0
+    error_message = "no healthy-host alarm at 0 tasks"
   }
 }

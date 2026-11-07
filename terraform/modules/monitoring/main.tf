@@ -1,4 +1,4 @@
-# Alerte pe email: API căzut, erori 5xx, CPU, pipeline-uri, buget.
+# Alerte pe email: API căzut, erori 5xx, CPU, buget. (Eșecurile de deploy le notifică GitHub Actions.)
 
 resource "aws_sns_topic" "alerts" {
   name = "aradex-alerts"
@@ -15,22 +15,14 @@ resource "aws_sns_topic_policy" "alerts" {
   arn = aws_sns_topic.alerts.arn
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Sid       = "CodeStarNotifications"
-        Effect    = "Allow"
-        Principal = { Service = "codestar-notifications.amazonaws.com" }
-        Action    = "sns:Publish"
-        Resource  = aws_sns_topic.alerts.arn
-      },
-      {
-        Sid       = "CloudWatchAlarms"
-        Effect    = "Allow"
-        Principal = { Service = "cloudwatch.amazonaws.com" }
-        Action    = "sns:Publish"
-        Resource  = aws_sns_topic.alerts.arn
-      },
-    ]
+    Statement = [{
+      Sid       = "CloudWatchAlarms"
+      Effect    = "Allow"
+      Principal = { Service = "cloudwatch.amazonaws.com" }
+      Action    = "sns:Publish"
+      Resource  = aws_sns_topic.alerts.arn
+      Condition = { StringEquals = { "aws:SourceAccount" = "712710404828" } }
+    }]
   })
 }
 
@@ -89,23 +81,6 @@ resource "aws_cloudwatch_metric_alarm" "cpu" {
     ServiceName = var.service_name
   }
   alarm_actions = [aws_sns_topic.alerts.arn]
-}
-
-resource "aws_codestarnotifications_notification_rule" "pipeline" {
-  count       = length(var.pipeline_arns)
-  name        = "aradex-pipeline-${count.index}"
-  resource    = var.pipeline_arns[count.index]
-  detail_type = "BASIC"
-  event_type_ids = [
-    "codepipeline-pipeline-pipeline-execution-failed",
-    "codepipeline-pipeline-pipeline-execution-succeeded",
-  ]
-
-  target {
-    address = aws_sns_topic.alerts.arn
-  }
-
-  depends_on = [aws_sns_topic_policy.alerts]
 }
 
 resource "aws_budgets_budget" "monthly" {

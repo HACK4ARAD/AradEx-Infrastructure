@@ -22,9 +22,3 @@ variable "cluster_name" {
 variable "service_name" {
   type = string
 }
-
-variable "pipeline_arns" {
-  description = "Pipeline-urile pentru care trimitem email la eșec/succes (gol fără domeniu)."
-  type        = list(string)
-  default     = []
-}
