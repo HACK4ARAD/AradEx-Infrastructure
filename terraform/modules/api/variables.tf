@@ -49,3 +49,15 @@ variable "desired_count" {
   type        = number
   default     = 0
 }
+
+variable "enable_https" {
+  description = "Cu domeniu: HTTP redirecționează spre HTTPS, iar HTTPS rutează /api/* spre API și restul spre web."
+  type        = bool
+  default     = false
+}
+
+variable "certificate_arn" {
+  description = "Certificatul ACM (eu-north-1, validat) pentru listener-ul HTTPS."
+  type        = string
+  default     = null
+}

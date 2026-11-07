@@ -5,21 +5,21 @@ mock_provider "aws" {
 }
 
 variables {
-  github_owner            = "HACK4ARAD"
-  backend_repo            = "AradEx-Backend"
-  frontend_repo           = "AradEx-Frontend"
-  branch                  = "main"
-  ecr_repository_arn      = "arn:aws:ecr:eu-north-1:712710404828:repository/aradex-api"
-  cluster_name            = "aradex"
-  service_name            = "aradex-api"
-  task_execution_role_arn = "arn:aws:iam::712710404828:role/aradex-api-execution"
-  task_role_arn           = "arn:aws:iam::712710404828:role/aradex-api-task"
-  enable_frontend         = true
-  bucket_name             = "aradex-site-mock"
-  bucket_arn              = "arn:aws:s3:::aradex-site-mock"
-  distribution_id         = "EMOCK123"
-  distribution_arn        = "arn:aws:cloudfront::712710404828:distribution/EMOCK123"
-  api_url                 = "https://aradex.example/api/v1"
+  github_owner                = "HACK4ARAD"
+  backend_repo                = "AradEx-Backend"
+  frontend_repo               = "AradEx-Frontend"
+  branch                      = "main"
+  ecr_repository_arn          = "arn:aws:ecr:eu-north-1:712710404828:repository/aradex-api"
+  cluster_name                = "aradex"
+  service_name                = "aradex-api"
+  task_execution_role_arn     = "arn:aws:iam::712710404828:role/aradex-api-execution"
+  task_role_arn               = "arn:aws:iam::712710404828:role/aradex-api-task"
+  enable_frontend             = true
+  web_ecr_repository_arn      = "arn:aws:ecr:eu-north-1:712710404828:repository/aradex-web"
+  web_service_name            = "aradex-web"
+  web_task_execution_role_arn = "arn:aws:iam::712710404828:role/aradex-web-execution"
+  web_task_role_arn           = "arn:aws:iam::712710404828:role/aradex-web-task"
+  api_url                     = "https://aradex.example/api/v1"
 }
 
 run "github_deploy" {
@@ -51,21 +51,18 @@ run "github_deploy" {
   }
   assert {
     condition = (
-      local.frontend_stmt["SiteList"].Resource == var.bucket_arn &&
-      local.frontend_stmt["SiteObjects"].Resource == "${var.bucket_arn}/*" &&
-      local.frontend_stmt["Invalidate"].Resource == var.distribution_arn &&
-      toset(local.frontend_stmt["Invalidate"].Action) == toset(["cloudfront:CreateInvalidation", "cloudfront:GetInvalidation"]) &&
-      local.frontend_stmt["Config"].Resource == "arn:aws:ssm:eu-north-1:712710404828:parameter/aradex/web/*"
+      local.frontend_stmt["EcrPush"].Resource == var.web_ecr_repository_arn &&
+      local.frontend_stmt["EcrAuth"].Action == "ecr:GetAuthorizationToken" &&
+      local.frontend_stmt["EcsService"].Resource == "arn:aws:ecs:eu-north-1:712710404828:service/aradex/aradex-web" &&
+      toset(local.frontend_stmt["PassTaskRoles"].Resource) == toset([var.web_task_execution_role_arn, var.web_task_role_arn]) &&
+      local.frontend_stmt["Config"].Resource == "arn:aws:ssm:eu-north-1:712710404828:parameter/aradex/web/*" &&
+      !contains(keys(local.frontend_stmt), "SiteObjects")
     )
-    error_message = "frontend permissions"
+    error_message = "frontend permissions: push aradex-web, deploy only the web service, read its config"
   }
   assert {
-    condition = (
-      aws_ssm_parameter.web["bucket"].name == "/aradex/web/bucket" && aws_ssm_parameter.web["bucket"].value == "aradex-site-mock" &&
-      aws_ssm_parameter.web["distribution_id"].value == "EMOCK123" &&
-      aws_ssm_parameter.web["api_url"].value == "https://aradex.example/api/v1"
-    )
-    error_message = "ssm parameters for the frontend workflow"
+    condition     = keys(aws_ssm_parameter.web) == ["api_url"] && aws_ssm_parameter.web["api_url"].name == "/aradex/web/api_url" && aws_ssm_parameter.web["api_url"].value == "https://aradex.example/api/v1"
+    error_message = "ssm: only api_url for the frontend build"
   }
 }
 
@@ -75,12 +72,12 @@ run "no_frontend_without_domain" {
     source = "./modules/github_deploy"
   }
   variables {
-    enable_frontend  = false
-    bucket_name      = null
-    bucket_arn       = null
-    distribution_id  = null
-    distribution_arn = null
-    api_url          = null
+    enable_frontend             = false
+    web_ecr_repository_arn      = null
+    web_service_name            = null
+    web_task_execution_role_arn = null
+    web_task_role_arn           = null
+    api_url                     = null
   }
   assert {
     condition     = length(aws_iam_user.frontend) == 0 && length(aws_ssm_parameter.web) == 0 && aws_iam_user.backend.name == "aradex-gha-backend"

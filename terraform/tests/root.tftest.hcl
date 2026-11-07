@@ -52,8 +52,8 @@ run "no_domain" {
     domain_name = ""
   }
   assert {
-    condition     = length(module.edge) == 0
-    error_message = "edge only with a domain"
+    condition     = length(module.edge) == 0 && length(module.web) == 0
+    error_message = "edge and web only with a domain"
   }
 }
 
@@ -65,7 +65,7 @@ run "with_domain" {
     api_desired_count = 1
   }
   assert {
-    condition     = length(module.edge) == 1
-    error_message = "edge exists with a domain"
+    condition     = length(module.edge) == 1 && length(module.web) == 1
+    error_message = "edge and web exist with a domain"
   }
 }

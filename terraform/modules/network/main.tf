@@ -1,9 +1,4 @@
-# VPC dedicat FĂRĂ NAT: subneturi publice (Fargate iese prin IGW) și izolate (RDS, ALB intern).
-
-locals {
-  # Prefix list-ul gestionat de AWS pentru IP-urile CloudFront spre origini (com.amazonaws.global.cloudfront.origin-facing).
-  cloudfront_origin_prefix_list = "pl-fab65393"
-}
+# VPC dedicat FĂRĂ NAT: subneturi publice (ALB-ul public, taskurile Fargate care ies prin IGW) și izolate (RDS).
 
 resource "aws_vpc" "this" {
   cidr_block           = var.cidr
@@ -68,13 +63,25 @@ resource "aws_route_table_association" "isolated" {
 
 resource "aws_security_group" "alb" {
   name        = "aradex-alb"
-  description = "ALB intern: doar CloudFront (VPC origin)"
+  description = "ALB public: doar HTTP si HTTPS"
   vpc_id      = aws_vpc.this.id
+
+  # Descrierea nu se poate modifica în AWS fără a recrea grupul (iar recrearea l-ar șterge cât timp regulile
+  # taskurilor încă trimit la el). Grupul existent are descrierea veche, din varianta cu CloudFront; o ignorăm.
+  lifecycle {
+    ignore_changes = [description]
+  }
 }
 
 resource "aws_security_group" "task" {
   name        = "aradex-api-task"
   description = "API Fargate: doar din ALB"
+  vpc_id      = aws_vpc.this.id
+}
+
+resource "aws_security_group" "web" {
+  name        = "aradex-web-task"
+  description = "PWA nginx Fargate: doar din ALB"
   vpc_id      = aws_vpc.this.id
 }
 
@@ -84,13 +91,15 @@ resource "aws_security_group" "db" {
   vpc_id      = aws_vpc.this.id
 }
 
-resource "aws_vpc_security_group_ingress_rule" "alb_from_cloudfront" {
+# Singurele porturi deschise spre internet: 80 (redirect spre HTTPS) și 443.
+resource "aws_vpc_security_group_ingress_rule" "alb_public" {
+  for_each          = { http = 80, https = 443 }
   security_group_id = aws_security_group.alb.id
-  prefix_list_id    = local.cloudfront_origin_prefix_list
+  cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "tcp"
-  from_port         = 80
-  to_port           = 80
-  description       = "CloudFront origin-facing"
+  from_port         = each.value
+  to_port           = each.value
+  description       = "internet ${each.key}"
 }
 
 resource "aws_vpc_security_group_ingress_rule" "task_from_alb" {
@@ -100,6 +109,15 @@ resource "aws_vpc_security_group_ingress_rule" "task_from_alb" {
   from_port                    = 8080
   to_port                      = 8080
   description                  = "ALB to API"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "web_from_alb" {
+  security_group_id            = aws_security_group.web.id
+  referenced_security_group_id = aws_security_group.alb.id
+  ip_protocol                  = "tcp"
+  from_port                    = 80
+  to_port                      = 80
+  description                  = "ALB to PWA"
 }
 
 resource "aws_vpc_security_group_ingress_rule" "db_from_task" {
@@ -113,7 +131,7 @@ resource "aws_vpc_security_group_ingress_rule" "db_from_task" {
 
 # Ieșire liberă: taskul trebuie să ajungă la ECR, Secrets Manager, CloudWatch, OpenAI, OSRM.
 resource "aws_vpc_security_group_egress_rule" "all" {
-  for_each          = { alb = aws_security_group.alb.id, task = aws_security_group.task.id, db = aws_security_group.db.id }
+  for_each          = { alb = aws_security_group.alb.id, task = aws_security_group.task.id, web = aws_security_group.web.id, db = aws_security_group.db.id }
   security_group_id = each.value
   ip_protocol       = "-1"
   cidr_ipv4         = "0.0.0.0/0"
