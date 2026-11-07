@@ -72,3 +72,8 @@ variable "google_places_secret_arn" {
   description = "Cheia Google Places (T17), injectată ca GOOGLE_PLACES_API_KEY; backend-ul o citește abia în T17."
   type        = string
 }
+
+variable "twilio_secret_arn" {
+  description = "Twilio Verify (T21): secret JSON cu account_sid, auth_token, verify_service_sid, injectate ca TWILIO_*."
+  type        = string
+}

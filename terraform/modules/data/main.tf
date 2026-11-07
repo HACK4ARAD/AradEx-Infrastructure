@@ -99,3 +99,21 @@ resource "aws_secretsmanager_secret_version" "google_places" {
     ignore_changes = [secret_string]
   }
 }
+
+# T21: Twilio Verify, SMS-ul cu codul OTP pentru conturile personale (numerele de demo 0799000xxx nu primesc SMS).
+# SMS-ul prin AWS (SNS / End User Messaging) e blocat de SCP-ul contului. JSON cu chei goale ca placeholder:
+# backend-ul răspunde 503 „SMS unavailable” până pune Zoltan valorile cu scripts/set-twilio-keys.sh.
+resource "aws_secretsmanager_secret" "twilio" {
+  name                    = "aradex/twilio"
+  description             = "Twilio Verify (T21): account_sid, auth_token, verify_service_sid - se pun cu scripts/set-twilio-keys.sh"
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "twilio" {
+  secret_id     = aws_secretsmanager_secret.twilio.id
+  secret_string = jsonencode({ account_sid = "", auth_token = "", verify_service_sid = "" })
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
+}
