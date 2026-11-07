@@ -24,6 +24,7 @@ locals {
       { name = "POSTGRES_PASSWORD", valueFrom = "${var.db_secret_arn}:password::" },
       { name = "JWT_SECRET", valueFrom = var.jwt_secret_arn },
       { name = "ANTHROPIC_API_KEY", valueFrom = var.anthropic_secret_arn },
+      { name = "GOOGLE_PLACES_API_KEY", valueFrom = var.google_places_secret_arn },
     ]
     logConfiguration = {
       logDriver = "awslogs"

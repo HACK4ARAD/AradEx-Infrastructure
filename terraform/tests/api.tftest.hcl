@@ -25,20 +25,21 @@ mock_provider "aws" {
 }
 
 variables {
-  vpc_id               = "vpc-1"
-  public_subnet_ids    = ["subnet-pub-a", "subnet-pub-b"]
-  isolated_subnet_ids  = ["subnet-iso-a", "subnet-iso-b"]
-  alb_sg_id            = "sg-alb"
-  task_sg_id           = "sg-task"
-  db_endpoint          = "db.example.internal"
-  db_secret_arn        = "arn:aws:secretsmanager:eu-north-1:712710404828:secret:rds-db"
-  jwt_secret_arn       = "arn:aws:secretsmanager:eu-north-1:712710404828:secret:aradex/jwt"
-  anthropic_secret_arn = "arn:aws:secretsmanager:eu-north-1:712710404828:secret:aradex/anthropic"
-  anthropic_model      = "claude-haiku-5-5"
-  domain_name          = "aradex.example"
-  desired_count        = 0
-  enable_https         = true
-  certificate_arn      = "arn:aws:acm:eu-north-1:712710404828:certificate/mock"
+  vpc_id                   = "vpc-1"
+  public_subnet_ids        = ["subnet-pub-a", "subnet-pub-b"]
+  isolated_subnet_ids      = ["subnet-iso-a", "subnet-iso-b"]
+  alb_sg_id                = "sg-alb"
+  task_sg_id               = "sg-task"
+  db_endpoint              = "db.example.internal"
+  db_secret_arn            = "arn:aws:secretsmanager:eu-north-1:712710404828:secret:rds-db"
+  jwt_secret_arn           = "arn:aws:secretsmanager:eu-north-1:712710404828:secret:aradex/jwt"
+  anthropic_secret_arn     = "arn:aws:secretsmanager:eu-north-1:712710404828:secret:aradex/anthropic"
+  anthropic_model          = "claude-haiku-5-5"
+  google_places_secret_arn = "arn:aws:secretsmanager:eu-north-1:712710404828:secret:aradex/google-places"
+  domain_name              = "aradex.example"
+  desired_count            = 0
+  enable_https             = true
+  certificate_arn          = "arn:aws:acm:eu-north-1:712710404828:certificate/mock"
 }
 
 run "api" {
@@ -73,7 +74,7 @@ run "api" {
     error_message = "jdbc url with sslmode=require"
   }
   assert {
-    condition     = sort([for s in local.container.secrets : s.name]) == tolist(["ANTHROPIC_API_KEY", "JWT_SECRET", "POSTGRES_PASSWORD", "POSTGRES_USER"])
+    condition     = sort([for s in local.container.secrets : s.name]) == tolist(["ANTHROPIC_API_KEY", "GOOGLE_PLACES_API_KEY", "JWT_SECRET", "POSTGRES_PASSWORD", "POSTGRES_USER"])
     error_message = "container secrets"
   }
   assert {
@@ -163,7 +164,7 @@ run "api" {
     error_message = "logs 7 days"
   }
   assert {
-    condition     = toset(jsondecode(aws_iam_role_policy.execution_secrets.policy).Statement[0].Resource) == toset([var.db_secret_arn, var.jwt_secret_arn, var.anthropic_secret_arn]) && jsondecode(aws_iam_role_policy.execution_secrets.policy).Statement[0].Action == "secretsmanager:GetSecretValue"
+    condition     = toset(jsondecode(aws_iam_role_policy.execution_secrets.policy).Statement[0].Resource) == toset([var.db_secret_arn, var.jwt_secret_arn, var.anthropic_secret_arn, var.google_places_secret_arn]) && jsondecode(aws_iam_role_policy.execution_secrets.policy).Statement[0].Action == "secretsmanager:GetSecretValue"
     error_message = "execution role reads only the 3 secrets"
   }
   # Cont nou: fără rolul service-linked ECS, CreateService poate pica imediat după CreateCluster.

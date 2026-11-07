@@ -82,3 +82,20 @@ resource "aws_secretsmanager_secret_version" "anthropic" {
     ignore_changes = [secret_string]
   }
 }
+
+# T17 (opțional): cheia Google Places API (New) pentru rating + recenzii Google, folosită doar de backend.
+# Placeholder intenționat; valoarea reală o pune Zoltan cu scripts/set-google-places-key.sh.
+resource "aws_secretsmanager_secret" "google_places" {
+  name                    = "aradex/google-places"
+  description             = "GOOGLE_PLACES_API_KEY (T17) - valoarea reala se pune cu scripts/set-google-places-key.sh"
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "google_places" {
+  secret_id     = aws_secretsmanager_secret.google_places.id
+  secret_string = "REPLACE_ME"
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
+}
