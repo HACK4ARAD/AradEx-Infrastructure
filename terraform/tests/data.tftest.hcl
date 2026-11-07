@@ -59,6 +59,11 @@ run "data" {
     condition     = aws_secretsmanager_secret.anthropic.name == "aradex/anthropic" && aws_secretsmanager_secret_version.anthropic.secret_string == "REPLACE_ME"
     error_message = "anthropic (Claude API) key placeholder"
   }
+  # T17 (opțional): cheia Google Places; valoarea o pune Zoltan cu scripts/set-google-places-key.sh.
+  assert {
+    condition     = aws_secretsmanager_secret.google_places.name == "aradex/google-places" && aws_secretsmanager_secret_version.google_places.secret_string == "REPLACE_ME" && aws_secretsmanager_secret.google_places.recovery_window_in_days == 0
+    error_message = "google places key placeholder"
+  }
   assert {
     condition     = aws_secretsmanager_secret.jwt.recovery_window_in_days == 0 && aws_secretsmanager_secret.anthropic.recovery_window_in_days == 0
     error_message = "immediate secret deletion"

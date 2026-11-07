@@ -19,3 +19,7 @@ output "jwt_secret_arn" {
 output "anthropic_secret_arn" {
   value = aws_secretsmanager_secret.anthropic.arn
 }
+
+output "google_places_secret_arn" {
+  value = aws_secretsmanager_secret.google_places.arn
+}

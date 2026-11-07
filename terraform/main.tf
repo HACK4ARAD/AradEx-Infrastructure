@@ -13,21 +13,22 @@ module "data" {
 }
 
 module "api" {
-  source               = "./modules/api"
-  vpc_id               = module.network.vpc_id
-  public_subnet_ids    = module.network.public_subnet_ids
-  isolated_subnet_ids  = module.network.isolated_subnet_ids
-  alb_sg_id            = module.network.alb_sg_id
-  task_sg_id           = module.network.task_sg_id
-  db_endpoint          = module.data.db_endpoint
-  db_secret_arn        = module.data.db_secret_arn
-  jwt_secret_arn       = module.data.jwt_secret_arn
-  anthropic_secret_arn = module.data.anthropic_secret_arn
-  anthropic_model      = var.anthropic_model
-  domain_name          = var.domain_name
-  desired_count        = var.api_desired_count
-  enable_https         = local.has_domain
-  certificate_arn      = one(module.edge[*].certificate_arn)
+  source                   = "./modules/api"
+  vpc_id                   = module.network.vpc_id
+  public_subnet_ids        = module.network.public_subnet_ids
+  isolated_subnet_ids      = module.network.isolated_subnet_ids
+  alb_sg_id                = module.network.alb_sg_id
+  task_sg_id               = module.network.task_sg_id
+  db_endpoint              = module.data.db_endpoint
+  db_secret_arn            = module.data.db_secret_arn
+  jwt_secret_arn           = module.data.jwt_secret_arn
+  anthropic_secret_arn     = module.data.anthropic_secret_arn
+  google_places_secret_arn = module.data.google_places_secret_arn
+  anthropic_model          = var.anthropic_model
+  domain_name              = var.domain_name
+  desired_count            = var.api_desired_count
+  enable_https             = local.has_domain
+  certificate_arn          = one(module.edge[*].certificate_arn)
 }
 
 module "web" {

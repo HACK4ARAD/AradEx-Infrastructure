@@ -67,3 +67,8 @@ variable "certificate_arn" {
   type        = string
   default     = null
 }
+
+variable "google_places_secret_arn" {
+  description = "Cheia Google Places (T17), injectată ca GOOGLE_PLACES_API_KEY; backend-ul o citește abia în T17."
+  type        = string
+}
