@@ -67,7 +67,7 @@ run "api" {
     error_message = "container name/port/image"
   }
   assert {
-    condition     = local.env["SPRING_PROFILES_ACTIVE"] == "prod" && local.env["ANTHROPIC_MODEL"] == "claude-haiku-5-5" && !contains(keys(local.env), "OPENAI_MODEL") && local.env["CORS_ORIGINS"] == "https://aradex.example,http://localhost"
+    condition     = local.env["SPRING_PROFILES_ACTIVE"] == "prod" && local.env["ANTHROPIC_MODEL"] == "claude-haiku-5-5" && !contains(keys(local.env), "OPENAI_MODEL") && local.env["CORS_ORIGINS"] == "https://aradex.example,http://localhost,capacitor://localhost"
     error_message = "container env"
   }
   # Review Focus 5: RDS are rds.force_ssl=1.
