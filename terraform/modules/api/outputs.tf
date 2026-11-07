@@ -57,3 +57,7 @@ output "task_execution_role_arn" {
 output "task_role_arn" {
   value = aws_iam_role.task.arn
 }
+
+output "media_bucket" {
+  value = aws_s3_bucket.media.bucket
+}

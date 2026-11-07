@@ -11,7 +11,7 @@ Fiecare task își face baza lui: `createdb -h localhost -U arad aradexperience_
 Fără Docker: Postgres 16 local cu rolul `arad` (parola `arad`, `CREATEDB`).
 
 ## AWS (Terraform)
-Un singur domeniu cu HTTPS, direct pe un ALB public (certificat ACM în `eu-north-1`): `/api/*`, `/swagger-ui*` și `/v3/api-docs*` merg la API (Spring, Fargate), restul la PWA (nginx, Fargate); HTTP și `www` redirecționează spre `https://<domeniu>`. Baza de date e RDS Postgres 16, izolată de internet. **Fără CloudFront:** contul nu poate crea distribuții până nu e verificat de AWS Support. GitHub Actions face deploy la fiecare merge pe `main`, cu cheile a doi utilizatori IAM dedicați, cu permisiuni înguste (organizația AWS interzice OIDC): `AradEx-Backend` (teste → imagine → ECS) și `AradEx-Frontend` (teste + build → imagine nginx → ECS). Workflow-urile sunt în `.github/workflows/deploy.yml` din fiecare repo.
+Un singur domeniu cu HTTPS, direct pe un ALB public (certificat ACM în `eu-north-1`): `/api/*`, `/swagger-ui*` și `/v3/api-docs*` merg la API (Spring, Fargate), restul la PWA (nginx, Fargate); HTTP și `www` redirecționează spre `https://<domeniu>`. Baza de date e RDS Postgres 16, izolată de internet. Pozele încărcate din panou stau în bucket-ul S3 privat `aradex-media-712710404828` (`modules/api/media.tf`); API-ul le scrie cu rolul task-ului și le servește la `/api/v1/media/**`. **Fără CloudFront:** contul nu poate crea distribuții până nu e verificat de AWS Support. GitHub Actions face deploy la fiecare merge pe `main`, cu cheile a doi utilizatori IAM dedicați, cu permisiuni înguste (organizația AWS interzice OIDC): `AradEx-Backend` (teste → imagine → ECS) și `AradEx-Frontend` (teste + build → imagine nginx → ECS). Workflow-urile sunt în `.github/workflows/deploy.yml` din fiecare repo.
 
 Cont `712710404828`, regiunea `eu-north-1`, profilul `aws-toolkit`. **Nicio cheie sau parolă în repo.**
 
@@ -85,7 +85,7 @@ node --test terraform/modules/edge/functions/
 
 ### Ștergere (după demo)
 `./scripts/destroy.sh` cere confirmarea `DESTROY` și șterge tot. Dacă ștergerea VPC-ului pică cu `DependencyViolation`, rulează scriptul din nou (interfețele de rețea ale ALB-ului se eliberează cu întârziere). Rămân:
-- snapshot-ul final RDS `aradex-final`;
+- snapshot-ul final RDS `aradex-final` (bucket-ul cu poze se șterge cu tot cu poze: `force_destroy`);
 - bucket-ul de state, pe care îl ștergi la final cu `terraform -chdir=terraform/bootstrap destroy`, după ce îl golești.
 
 ### Variabile (`terraform/terraform.tfvars`, fără secrete)
