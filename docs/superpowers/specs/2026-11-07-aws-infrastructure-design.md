@@ -41,7 +41,7 @@
    / (default)│                                         │ /api/* · /swagger-ui* · /v3/api-docs*
               ▼                                         ▼  fără cache; forward la Authorization, query, body
    S3 privat (dist/ al FE), acces doar prin OAC     VPC origin → ALB intern (HTTP :80)
-   403/404 → /index.html (SPA)                                  │
+   rutele SPA → /index.html (CloudFront Function)                                  │
                                                                 ▼
                                        ECS Fargate · 1 task · ARM64 · 0,5 vCPU / 1 GB
                                        subnet public, IP public doar pentru ieșire
@@ -67,8 +67,8 @@
 - `VITE_API_URL` trebuie să fie **absolut** (`https://<domeniu>/api/v1`), pentru că `shared/api/client.ts` construiește URL-ul cu `new URL(...)`.
 
 ### 2.3 CloudFront
-- **Comportamentul default (S3):** politica de cache `CachingOptimized`, compresie, HTTP/2+3, redirect HTTP → HTTPS. Erorile 403/404 întorc `/index.html` cu 200, pentru rutele SPA `/m/*` și `/w/*`.
-- **`/api/*`, `/swagger-ui*`, `/v3/api-docs*` (ALB):** `CachingDisabled` + `AllViewerExceptHostHeader`, toate metodele HTTP.
+- **Comportamentul default (S3):** politica de cache `CachingOptimized`, compresie, HTTP/2+3, redirect HTTP → HTTPS. O CloudFront Function (viewer-request, doar aici) rescrie rutele SPA `/m/*` și `/w/*` spre `/index.html` și redirecționează `www` spre domeniu. **Fără `custom_error_response` pe distribuție**: ar transforma și erorile 403/404 ale API-ului în HTML.
+- **`/api/*`, `/swagger-ui*`, `/v3/api-docs*` (ALB):** `CachingDisabled` + `AllViewerExceptHostHeader`, toate metodele HTTP, timeout de citire 60 s (apelurile AI).
 - Logurile CloudFront sunt oprite (weekend).
 
 ## 3. Componente (module Terraform)

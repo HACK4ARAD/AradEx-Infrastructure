@@ -130,6 +130,11 @@ run "edge" {
     condition     = startswith(aws_cloudfront_distribution.this.viewer_certificate[0].acm_certificate_arn, "arn:aws:acm:us-east-1:")
     error_message = "certificate comes from us-east-1"
   }
+  # Chat-ul/itinerarul AI pot dura >30 s; CloudFront ar întoarce 504 în locul fallback-ului aplicației.
+  assert {
+    condition     = one([for o in aws_cloudfront_distribution.this.origin : one(o.vpc_origin_config).origin_read_timeout if o.origin_id == "api"]) == 60
+    error_message = "api origin read timeout 60s"
+  }
   assert {
     condition     = aws_cloudfront_function.spa.runtime == "cloudfront-js-2.0" && aws_cloudfront_function.spa.publish
     error_message = "spa function"

@@ -66,7 +66,8 @@ resource "aws_cloudwatch_log_group" "api" {
 }
 
 resource "aws_ecs_cluster" "this" {
-  name = "aradex"
+  name       = "aradex"
+  depends_on = [aws_iam_service_linked_role.ecs]
 }
 
 resource "aws_ecs_task_definition" "api" {
@@ -151,5 +152,5 @@ resource "aws_ecs_service" "api" {
     container_port   = local.container_port
   }
 
-  depends_on = [aws_lb_listener.http]
+  depends_on = [aws_lb_listener.http, aws_iam_service_linked_role.ecs]
 }

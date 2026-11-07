@@ -57,3 +57,9 @@ resource "aws_iam_role_policy" "task_exec_command" {
     }]
   })
 }
+
+# Cont nou: rolul service-linked ECS nu există încă. Îl creăm explicit, înaintea clusterului și a serviciului,
+# altfel CreateService poate pica cu "Unable to assume the service linked role".
+resource "aws_iam_service_linked_role" "ecs" {
+  aws_service_name = "ecs.amazonaws.com"
+}

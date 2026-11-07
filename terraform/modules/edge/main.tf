@@ -143,7 +143,7 @@ resource "aws_cloudfront_distribution" "this" {
     vpc_origin_config {
       vpc_origin_id            = aws_cloudfront_vpc_origin.api.id
       origin_keepalive_timeout = 5
-      origin_read_timeout      = 30
+      origin_read_timeout      = 60 # chat/itinerar AI pot depăși 30 s
     }
   }
 

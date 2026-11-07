@@ -119,6 +119,11 @@ run "api" {
     condition     = toset(jsondecode(aws_iam_role_policy.execution_secrets.policy).Statement[0].Resource) == toset([var.db_secret_arn, var.jwt_secret_arn, var.openai_secret_arn]) && jsondecode(aws_iam_role_policy.execution_secrets.policy).Statement[0].Action == "secretsmanager:GetSecretValue"
     error_message = "execution role reads only the 3 secrets"
   }
+  # Cont nou: fără rolul service-linked ECS, CreateService poate pica imediat după CreateCluster.
+  assert {
+    condition     = aws_iam_service_linked_role.ecs.aws_service_name == "ecs.amazonaws.com"
+    error_message = "ecs service-linked role managed before the service"
+  }
   assert {
     condition     = contains(jsondecode(aws_iam_role_policy.task_exec_command.policy).Statement[0].Action, "ssmmessages:OpenDataChannel")
     error_message = "task role allows ECS Exec"
