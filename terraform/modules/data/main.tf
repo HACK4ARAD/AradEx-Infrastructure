@@ -15,9 +15,11 @@ resource "aws_db_parameter_group" "this" {
   name   = "aradex-postgres16"
   family = "postgres16"
 
+  # Parametru static: RDS îl salvează ca pending-reboot; altfel planul ar arăta mereu o diferență.
   parameter {
-    name  = "rds.force_ssl"
-    value = "1"
+    name         = "rds.force_ssl"
+    value        = "1"
+    apply_method = "pending-reboot"
   }
 }
 

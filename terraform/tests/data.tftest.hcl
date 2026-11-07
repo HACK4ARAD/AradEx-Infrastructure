@@ -44,8 +44,8 @@ run "data" {
     error_message = "db sg"
   }
   assert {
-    condition     = aws_db_parameter_group.this.family == "postgres16" && anytrue([for p in aws_db_parameter_group.this.parameter : p.name == "rds.force_ssl" && p.value == "1"])
-    error_message = "force ssl"
+    condition     = aws_db_parameter_group.this.family == "postgres16" && anytrue([for p in aws_db_parameter_group.this.parameter : p.name == "rds.force_ssl" && p.value == "1" && p.apply_method == "pending-reboot"])
+    error_message = "force ssl (static parameter: pending-reboot, as RDS stores it)"
   }
   assert {
     condition     = aws_db_subnet_group.this.subnet_ids == toset(["subnet-iso-a", "subnet-iso-b"])
