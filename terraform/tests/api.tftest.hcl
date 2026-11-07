@@ -89,7 +89,7 @@ run "api" {
     error_message = "task role can read and write media"
   }
   assert {
-    condition     = sort([for s in local.container.secrets : s.name]) == tolist(["ANTHROPIC_API_KEY", "GOOGLE_PLACES_API_KEY", "JWT_SECRET", "POSTGRES_PASSWORD", "POSTGRES_USER", "SMS_GATEWAY_TOKEN", "STRIPE_PUBLISHABLE_KEY", "STRIPE_SECRET_KEY", "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_VERIFY_SERVICE_SID"])
+    condition     = sort([for s in local.container.secrets : s.name]) == tolist(["ANTHROPIC_API_KEY", "GOOGLE_PLACES_API_KEY", "JWT_SECRET", "POSTGRES_PASSWORD", "POSTGRES_USER", "SMS_GATEWAY_TOKEN", "STRIPE_PUBLISHABLE_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_VERIFY_SERVICE_SID"])
     error_message = "container secrets"
   }
   assert {
@@ -102,7 +102,7 @@ run "api" {
   }
   # T25: cheile Stripe (mod test) din aradex/stripe, câte o cheie JSON pe variabilă
   assert {
-    condition     = [for s in local.container.secrets : s.valueFrom if s.name == "STRIPE_SECRET_KEY"][0] == "arn:aws:secretsmanager:eu-north-1:712710404828:secret:aradex/stripe:secret_key::" && [for s in local.container.secrets : s.valueFrom if s.name == "STRIPE_PUBLISHABLE_KEY"][0] == "arn:aws:secretsmanager:eu-north-1:712710404828:secret:aradex/stripe:publishable_key::"
+    condition     = [for s in local.container.secrets : s.valueFrom if s.name == "STRIPE_SECRET_KEY"][0] == "arn:aws:secretsmanager:eu-north-1:712710404828:secret:aradex/stripe:secret_key::" && [for s in local.container.secrets : s.valueFrom if s.name == "STRIPE_PUBLISHABLE_KEY"][0] == "arn:aws:secretsmanager:eu-north-1:712710404828:secret:aradex/stripe:publishable_key::" && [for s in local.container.secrets : s.valueFrom if s.name == "STRIPE_WEBHOOK_SECRET"][0] == "arn:aws:secretsmanager:eu-north-1:712710404828:secret:aradex/stripe:webhook_secret::"
     error_message = "stripe secrets come from aradex/stripe"
   }
   assert {
