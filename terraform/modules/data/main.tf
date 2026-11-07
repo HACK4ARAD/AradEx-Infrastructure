@@ -118,17 +118,17 @@ resource "aws_secretsmanager_secret_version" "twilio" {
   }
 }
 
-# T07: plata biletelor în modul de test Stripe. JSON cu chei goale ca placeholder: backend-ul face plata demonstrativă până pune
-# Zoltan cheile de test (sk_test_… / pk_test_…) cu scripts/set-stripe-keys.sh. Cheile live sunt refuzate de backend.
+# T07 / T25: plata biletelor în modul de test Stripe. JSON cu chei goale ca placeholder: backend-ul face plata demonstrativă până pune
+# Zoltan cheile de test (sk_test_… / pk_test_…, opțional whsec_… pentru webhook) cu scripts/set-stripe-keys.sh. Cheile live sunt refuzate.
 resource "aws_secretsmanager_secret" "stripe" {
   name                    = "aradex/stripe"
-  description             = "Stripe test mode (T07): secret_key (sk_test_), publishable_key (pk_test_) - se pun cu scripts/set-stripe-keys.sh"
+  description             = "Stripe test mode (T07/T25): secret_key (sk_test_), publishable_key (pk_test_), webhook_secret (whsec_, optional) - se pun cu scripts/set-stripe-keys.sh"
   recovery_window_in_days = 0
 }
 
 resource "aws_secretsmanager_secret_version" "stripe" {
   secret_id     = aws_secretsmanager_secret.stripe.id
-  secret_string = jsonencode({ secret_key = "", publishable_key = "" })
+  secret_string = jsonencode({ secret_key = "", publishable_key = "", webhook_secret = "" })
 
   lifecycle {
     ignore_changes = [secret_string]

@@ -79,7 +79,7 @@ variable "twilio_secret_arn" {
 }
 
 variable "stripe_secret_arn" {
-  description = "Stripe test mode (T07): secret JSON cu secret_key și publishable_key, injectate ca STRIPE_* (goale = plata demonstrativă)."
+  description = "Stripe test mode (T07/T25): secret JSON cu secret_key și publishable_key, injectate ca STRIPE_* (goale = plata demonstrativă); webhook_secret stă în secret pentru webhook (BE #28), încă neinjectat."
   type        = string
 }
 

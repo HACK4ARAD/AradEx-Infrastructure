@@ -86,6 +86,15 @@ run "data" {
     condition     = jsonencode(jsondecode(nonsensitive(aws_secretsmanager_secret_version.sms_gateway.secret_string))) == jsonencode({ token = "" })
     error_message = "sms gateway secret placeholder"
   }
+  # T25: Stripe în mod test; chei goale până le pune Zoltan cu scripts/set-stripe-keys.sh.
+  assert {
+    condition     = aws_secretsmanager_secret.stripe.name == "aradex/stripe" && aws_secretsmanager_secret.stripe.recovery_window_in_days == 0
+    error_message = "stripe secret"
+  }
+  assert {
+    condition     = jsonencode(sort(keys(jsondecode(nonsensitive(aws_secretsmanager_secret_version.stripe.secret_string))))) == jsonencode(["publishable_key", "secret_key", "webhook_secret"])
+    error_message = "stripe secret placeholder keys"
+  }
   assert {
     condition     = aws_secretsmanager_secret.jwt.recovery_window_in_days == 0 && aws_secretsmanager_secret.anthropic.recovery_window_in_days == 0
     error_message = "immediate secret deletion"
