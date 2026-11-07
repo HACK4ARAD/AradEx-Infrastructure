@@ -63,7 +63,7 @@ run "api" {
     error_message = "container name/port/image"
   }
   assert {
-    condition     = local.env["SPRING_PROFILES_ACTIVE"] == "prod" && local.env["OPENAI_MODEL"] == "gpt-4o-mini" && local.env["CORS_ORIGINS"] == "https://aradex.example"
+    condition     = local.env["SPRING_PROFILES_ACTIVE"] == "prod" && local.env["OPENAI_MODEL"] == "gpt-4o-mini" && local.env["CORS_ORIGINS"] == "https://aradex.example,http://localhost"
     error_message = "container env"
   }
   # Review Focus 5: RDS are rds.force_ssl=1.

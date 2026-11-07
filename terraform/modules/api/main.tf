@@ -14,7 +14,8 @@ locals {
     environment = [
       { name = "SPRING_PROFILES_ACTIVE", value = "prod" },
       { name = "OPENAI_MODEL", value = "gpt-4o-mini" },
-      { name = "CORS_ORIGINS", value = var.domain_name != "" ? "https://${var.domain_name}" : "http://localhost:5173" },
+      # http://localhost = originea aplicației Android (Capacitor), care apelează API-ul de producție.
+      { name = "CORS_ORIGINS", value = var.domain_name != "" ? "https://${var.domain_name},http://localhost" : "http://localhost:5173" },
       # RDS are rds.force_ssl=1, deci conexiunea trebuie să ceară SSL.
       { name = "POSTGRES_URL", value = "jdbc:postgresql://${var.db_endpoint}:5432/aradexperience?sslmode=require" },
     ]
