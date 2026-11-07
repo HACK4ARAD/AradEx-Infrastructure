@@ -5,3 +5,12 @@
 .idea/
 .vscode/
 .DS_Store
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform/local.auto.tfvars
+# workflow scratch
+.superpowers/

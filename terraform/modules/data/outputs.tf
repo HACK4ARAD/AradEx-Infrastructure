@@ -1,0 +1,21 @@
+output "db_endpoint" {
+  description = "Adresa RDS, fără port."
+  value       = aws_db_instance.this.address
+}
+
+output "db_instance_id" {
+  value = aws_db_instance.this.identifier
+}
+
+output "db_secret_arn" {
+  description = "Secretul gestionat de RDS (chei: username, password)."
+  value       = aws_db_instance.this.master_user_secret[0].secret_arn
+}
+
+output "jwt_secret_arn" {
+  value = aws_secretsmanager_secret.jwt.arn
+}
+
+output "openai_secret_arn" {
+  value = aws_secretsmanager_secret.openai.arn
+}
