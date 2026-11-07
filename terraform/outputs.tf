@@ -36,3 +36,8 @@ output "gha_frontend_user" {
   description = "Utilizatorul IAM al workflow-ului AradEx-Frontend (cheile: scripts/github-keys.sh web)."
   value       = module.github_deploy.frontend_user
 }
+
+output "media_bucket" {
+  description = "Bucket-ul S3 cu pozele încărcate din panou (privat; servite de API)."
+  value       = module.api.media_bucket
+}

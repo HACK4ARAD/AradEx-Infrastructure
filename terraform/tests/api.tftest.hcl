@@ -75,6 +75,18 @@ run "api" {
     error_message = "jdbc url with sslmode=require"
   }
   assert {
+    condition     = local.env["MEDIA_BUCKET"] == "aradex-media-712710404828" && local.env["MEDIA_PUBLIC_URL"] == "https://aradex.example/api/v1/media"
+    error_message = "media env"
+  }
+  assert {
+    condition     = aws_s3_bucket.media.bucket == "aradex-media-712710404828" && aws_s3_bucket_public_access_block.media.block_public_acls && aws_s3_bucket_public_access_block.media.block_public_policy && aws_s3_bucket_public_access_block.media.ignore_public_acls && aws_s3_bucket_public_access_block.media.restrict_public_buckets
+    error_message = "media bucket stays private"
+  }
+  assert {
+    condition     = jsonencode(jsondecode(aws_iam_role_policy.task_media.policy).Statement[0].Action) == jsonencode(["s3:GetObject", "s3:PutObject"]) && aws_iam_role_policy.task_media.role == aws_iam_role.task.id
+    error_message = "task role can read and write media"
+  }
+  assert {
     condition     = sort([for s in local.container.secrets : s.name]) == tolist(["ANTHROPIC_API_KEY", "GOOGLE_PLACES_API_KEY", "JWT_SECRET", "POSTGRES_PASSWORD", "POSTGRES_USER", "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_VERIFY_SERVICE_SID"])
     error_message = "container secrets"
   }
@@ -194,8 +206,8 @@ run "cors_fallback_without_domain" {
     certificate_arn = null
   }
   assert {
-    condition     = local.env["CORS_ORIGINS"] == "http://localhost:5173"
-    error_message = "cors fallback"
+    condition     = local.env["CORS_ORIGINS"] == "http://localhost:5173" && local.env["MEDIA_PUBLIC_URL"] == ""
+    error_message = "cors and media url fallback"
   }
   assert {
     condition     = length(aws_lb_listener.https) == 0 && length(aws_lb_target_group.web) == 0 && aws_lb_listener.http.default_action[0].type == "forward" && aws_lb_listener.http.default_action[0].target_group_arn == aws_lb_target_group.api.arn
