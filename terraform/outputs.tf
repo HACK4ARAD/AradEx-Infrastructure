@@ -27,12 +27,12 @@ output "distribution_id" {
   value = one(module.edge[*].distribution_id)
 }
 
-output "gha_backend_role_arn" {
-  description = "role-to-assume pentru workflow-ul AradEx-Backend."
-  value       = module.github_oidc.backend_role_arn
+output "gha_backend_user" {
+  description = "Utilizatorul IAM al workflow-ului AradEx-Backend (cheile: scripts/github-keys.sh api)."
+  value       = module.github_deploy.backend_user
 }
 
-output "gha_frontend_role_arn" {
-  description = "role-to-assume pentru workflow-ul AradEx-Frontend (după ce există domeniul)."
-  value       = module.github_oidc.frontend_role_arn
+output "gha_frontend_user" {
+  description = "Utilizatorul IAM al workflow-ului AradEx-Frontend (cheile: scripts/github-keys.sh web)."
+  value       = module.github_deploy.frontend_user
 }

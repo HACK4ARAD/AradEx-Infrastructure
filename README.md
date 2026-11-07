@@ -11,7 +11,7 @@ Fiecare task își face baza lui: `createdb -h localhost -U arad aradexperience_
 Fără Docker: Postgres 16 local cu rolul `arad` (parola `arad`, `CREATEDB`).
 
 ## AWS (Terraform)
-Un singur domeniu cu HTTPS: CloudFront servește `/` din S3 (PWA-ul) și trimite `/api/*` spre un ALB intern → Fargate (API). Baza de date e RDS Postgres 16, izolată de internet. GitHub Actions face deploy la fiecare merge pe `main`, cu acces AWS prin OIDC (fără chei): `AradEx-Backend` (teste → imagine → ECS) și `AradEx-Frontend` (teste + build → S3 → invalidare). Workflow-urile sunt în `.github/workflows/deploy.yml` din fiecare repo.
+Un singur domeniu cu HTTPS: CloudFront servește `/` din S3 (PWA-ul) și trimite `/api/*` spre un ALB intern → Fargate (API). Baza de date e RDS Postgres 16, izolată de internet. GitHub Actions face deploy la fiecare merge pe `main`, cu cheile a doi utilizatori IAM dedicați, cu permisiuni înguste (organizația AWS interzice OIDC): `AradEx-Backend` (teste → imagine → ECS) și `AradEx-Frontend` (teste + build → S3 → invalidare). Workflow-urile sunt în `.github/workflows/deploy.yml` din fiecare repo.
 
 Cont `712710404828`, regiunea `eu-north-1`, profilul `aws-toolkit`. **Nicio cheie sau parolă în repo.**
 
@@ -19,9 +19,9 @@ Cont `712710404828`, regiunea `eu-north-1`, profilul `aws-toolkit`. **Nicio chei
 terraform/
   bootstrap/        bucket-ul pentru state (rulat o singură dată, state local)
   *.tf              root-ul: variabile, provider-e (eu-north-1 + us-east-1), backend S3, module
-  modules/          network · data · api · edge (domeniu, cert, CloudFront) · github_oidc (roluri pentru GitHub Actions) · monitoring
+  modules/          network · data · api · edge (domeniu, cert, CloudFront) · github_deploy (utilizatori IAM pentru GitHub Actions) · monitoring
   tests/            terraform test (mock-uri, fără credențiale)
-scripts/            set-openai-key.sh · redeploy.sh · destroy.sh
+scripts/            set-openai-key.sh · github-keys.sh · redeploy.sh · destroy.sh
 ```
 
 ### De la zero la live
@@ -52,8 +52,9 @@ Toate comenzile se dau din rădăcina repo-ului, cu `export AWS_PROFILE=aws-tool
    terraform -chdir=terraform apply edge.tfplan     # certificatul se validează în câteva minute
    ```
 5. **Deploy automat (GitHub Actions):**
-   - aplică restul: `terraform -chdir=terraform plan -out=all.tfplan`, apoi `apply all.tfplan` (rolul FE și parametrii SSM `/aradex/web/*`);
+   - aplică restul: `terraform -chdir=terraform plan -out=all.tfplan`, apoi `apply all.tfplan` (utilizatorul FE și parametrii SSM `/aradex/web/*`);
    - pe GitHub: HACK4ARAD → Settings → Actions → permite rularea workflow-urilor;
+   - pune cheile în secretele repo-urilor (nu apar pe ecran; cheile vechi se șterg): `./scripts/github-keys.sh api` și `./scripts/github-keys.sh web`. Scriptul cere `gh` autentificat cu acces la organizația HACK4ARAD;
    - fă merge la workflow-urile din branch-urile `feat/T04-aws-infra` din `AradEx-Backend` și `AradEx-Frontend`, sau pornește-le manual:
      ```
      gh workflow run deploy.yml -R HACK4ARAD/AradEx-Frontend

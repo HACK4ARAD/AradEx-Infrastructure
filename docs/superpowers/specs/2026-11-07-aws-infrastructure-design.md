@@ -4,6 +4,7 @@
 **Stare:** spec aprobat.
 - **Revizia 2 (7 nov):** infrastructura se scrie în Terraform, nu în CDK, la cererea lui Zoltan.
 - **Revizia 3 (7 nov):** contul are cota CodeBuild „Concurrently running builds” = 0 pentru toate mediile, deci CodePipeline/CodeBuild nu pot rula. La cererea lui Zoltan, **deploy-ul trece pe GitHub Actions cu OIDC**, iar **Fargate trece pe x86_64** (runner-ele GitHub gratuite sunt x86; build nativ cu `Dockerfile`-ul existent). Diferențele sunt în §1, §3, §4, §5, §6, §7, §8, §10.
+- **Revizia 4 (7 nov, la deploy):** organizația AWS a contului (SCP `p-wpt9usyn`) interzice `iam:CreateOpenIDConnectProvider` și permite doar regiunile `eu-north-1` și `us-east-1`. În loc de OIDC: modulul `github_deploy` creează utilizatorii IAM `aradex-gha-backend` și `aradex-gha-frontend` (`force_destroy`), cu aceleași permisiuni. Cheile le creează `scripts/github-keys.sh` direct în secretele repo-urilor (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`), deci nu ajung în Terraform, git sau chat. Se șterg la `terraform destroy`.
 
 ## 1. Scop și constrângeri
 

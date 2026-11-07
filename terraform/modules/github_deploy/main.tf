@@ -1,46 +1,27 @@
-# GitHub Actions -> AWS fără chei: OIDC + câte un rol per repo, utilizabil doar de pe branch-ul de deploy.
+# GitHub Actions -> AWS: organizația AWS interzice providerul OIDC (SCP), deci fiecare repo are un utilizator IAM
+# dedicat, cu permisiuni înguste. Cheile NU sunt în Terraform: le creează scripts/github-keys.sh direct în
+# secretele GitHub ale repo-ului. force_destroy le șterge la `terraform destroy`.
 
 locals {
   account     = "712710404828"
   region      = "eu-north-1"
-  oidc_host   = "token.actions.githubusercontent.com"
   service_arn = "arn:aws:ecs:${local.region}:${local.account}:service/${var.cluster_name}/${var.service_name}"
 
-  trust = { for repo in [var.backend_repo, var.frontend_repo] : repo => jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
-      Action    = "sts:AssumeRoleWithWebIdentity"
-      Condition = {
-        StringEquals = {
-          "${local.oidc_host}:aud" = "sts.amazonaws.com"
-          "${local.oidc_host}:sub" = "repo:${var.github_owner}/${repo}:ref:refs/heads/${var.branch}"
-        }
-      }
-    }]
-  }) }
-
   # Statement-urile pe Sid (folosite și de teste).
-  backend_stmt  = { for st in jsondecode(aws_iam_role_policy.backend.policy).Statement : st.Sid => st }
-  frontend_stmt = { for st in flatten([for p in aws_iam_role_policy.frontend : jsondecode(p.policy).Statement]) : st.Sid => st }
-}
-
-resource "aws_iam_openid_connect_provider" "github" {
-  url            = "https://${local.oidc_host}"
-  client_id_list = ["sts.amazonaws.com"]
+  backend_stmt  = { for st in jsondecode(aws_iam_user_policy.backend.policy).Statement : st.Sid => st }
+  frontend_stmt = { for st in flatten([for p in aws_iam_user_policy.frontend : jsondecode(p.policy).Statement]) : st.Sid => st }
 }
 
 # --- Backend: imagine în ECR + deploy pe serviciul ECS -----------------------
 
-resource "aws_iam_role" "backend" {
-  name               = "aradex-gha-backend"
-  assume_role_policy = local.trust[var.backend_repo]
+resource "aws_iam_user" "backend" {
+  name          = "aradex-gha-backend"
+  force_destroy = true
 }
 
-resource "aws_iam_role_policy" "backend" {
+resource "aws_iam_user_policy" "backend" {
   name = "deploy-api"
-  role = aws_iam_role.backend.id
+  user = aws_iam_user.backend.name
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -85,16 +66,16 @@ resource "aws_iam_role_policy" "backend" {
 
 # --- Frontend: fișiere în S3 + invalidare CloudFront (doar cu domeniu) ---------
 
-resource "aws_iam_role" "frontend" {
-  count              = var.enable_frontend ? 1 : 0
-  name               = "aradex-gha-frontend"
-  assume_role_policy = local.trust[var.frontend_repo]
+resource "aws_iam_user" "frontend" {
+  count         = var.enable_frontend ? 1 : 0
+  name          = "aradex-gha-frontend"
+  force_destroy = true
 }
 
-resource "aws_iam_role_policy" "frontend" {
+resource "aws_iam_user_policy" "frontend" {
   count = var.enable_frontend ? 1 : 0
   name  = "deploy-web"
-  role  = aws_iam_role.frontend[0].id
+  user  = aws_iam_user.frontend[0].name
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [

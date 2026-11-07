@@ -1,9 +1,6 @@
 mock_provider "aws" {
-  mock_resource "aws_iam_openid_connect_provider" {
-    defaults = { arn = "arn:aws:iam::712710404828:oidc-provider/token.actions.githubusercontent.com" }
-  }
-  mock_resource "aws_iam_role" {
-    defaults = { arn = "arn:aws:iam::712710404828:role/mock" }
+  mock_resource "aws_iam_user" {
+    defaults = { arn = "arn:aws:iam::712710404828:user/mock" }
   }
 }
 
@@ -25,26 +22,16 @@ variables {
   api_url                 = "https://aradex.example/api/v1"
 }
 
-run "github_oidc" {
+run "github_deploy" {
   command = apply
   module {
-    source = "./modules/github_oidc"
+    source = "./modules/github_deploy"
   }
 
+  # Organizația AWS interzice providerul OIDC: GitHub folosește chei ale unor utilizatori IAM dedicați.
   assert {
-    condition     = aws_iam_openid_connect_provider.github.url == "https://token.actions.githubusercontent.com" && tolist(aws_iam_openid_connect_provider.github.client_id_list) == tolist(["sts.amazonaws.com"])
-    error_message = "github oidc provider"
-  }
-  # Doar repo-ul Backend, doar main (StringEquals, nu wildcard).
-  assert {
-    condition = (
-      aws_iam_role.backend.name == "aradex-gha-backend" &&
-      jsondecode(aws_iam_role.backend.assume_role_policy).Statement[0].Action == "sts:AssumeRoleWithWebIdentity" &&
-      jsondecode(aws_iam_role.backend.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:aud"] == "sts.amazonaws.com" &&
-      jsondecode(aws_iam_role.backend.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:HACK4ARAD/AradEx-Backend:ref:refs/heads/main" &&
-      !can(jsondecode(aws_iam_role.backend.assume_role_policy).Statement[0].Condition.StringLike)
-    )
-    error_message = "backend trust: only HACK4ARAD/AradEx-Backend on main"
+    condition     = aws_iam_user.backend.name == "aradex-gha-backend" && aws_iam_user.backend.force_destroy
+    error_message = "backend deploy user (force_destroy deletes its keys on destroy)"
   }
   assert {
     condition = (
@@ -59,11 +46,8 @@ run "github_oidc" {
     error_message = "backend permissions"
   }
   assert {
-    condition = (
-      aws_iam_role.frontend[0].name == "aradex-gha-frontend" &&
-      jsondecode(aws_iam_role.frontend[0].assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:HACK4ARAD/AradEx-Frontend:ref:refs/heads/main"
-    )
-    error_message = "frontend trust: only HACK4ARAD/AradEx-Frontend on main"
+    condition     = aws_iam_user.frontend[0].name == "aradex-gha-frontend" && aws_iam_user.frontend[0].force_destroy
+    error_message = "frontend deploy user"
   }
   assert {
     condition = (
@@ -88,7 +72,7 @@ run "github_oidc" {
 run "no_frontend_without_domain" {
   command = apply
   module {
-    source = "./modules/github_oidc"
+    source = "./modules/github_deploy"
   }
   variables {
     enable_frontend  = false
@@ -99,7 +83,7 @@ run "no_frontend_without_domain" {
     api_url          = null
   }
   assert {
-    condition     = length(aws_iam_role.frontend) == 0 && length(aws_ssm_parameter.web) == 0 && aws_iam_role.backend.name == "aradex-gha-backend"
-    error_message = "only the backend role without a domain"
+    condition     = length(aws_iam_user.frontend) == 0 && length(aws_ssm_parameter.web) == 0 && aws_iam_user.backend.name == "aradex-gha-backend"
+    error_message = "only the backend user without a domain"
   }
 }

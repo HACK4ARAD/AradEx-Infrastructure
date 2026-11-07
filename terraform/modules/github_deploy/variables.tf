@@ -11,7 +11,7 @@ variable "frontend_repo" {
 }
 
 variable "branch" {
-  description = "Singurul branch care poate asuma rolurile."
+  description = "Branch-ul de deploy (folosit de workflow-uri; cheile nu sunt legate de branch)."
   type        = string
 }
 

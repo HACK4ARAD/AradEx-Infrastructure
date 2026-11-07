@@ -39,8 +39,8 @@ module "edge" {
   alb_dns_name = module.api.alb_dns_name
 }
 
-module "github_oidc" {
-  source                  = "./modules/github_oidc"
+module "github_deploy" {
+  source                  = "./modules/github_deploy"
   github_owner            = var.github_owner
   backend_repo            = var.backend_repo
   frontend_repo           = var.frontend_repo
