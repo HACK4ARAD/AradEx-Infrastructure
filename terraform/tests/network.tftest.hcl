@@ -31,27 +31,35 @@ run "network" {
     error_message = "public default route via IGW"
   }
   assert {
-    condition     = aws_vpc_security_group_ingress_rule.alb_from_cloudfront.prefix_list_id == "pl-fab65393" && aws_vpc_security_group_ingress_rule.alb_from_cloudfront.from_port == 80 && aws_vpc_security_group_ingress_rule.alb_from_cloudfront.to_port == 80 && aws_vpc_security_group_ingress_rule.alb_from_cloudfront.security_group_id == aws_security_group.alb.id
-    error_message = "alb ingress only from CloudFront prefix list on 80"
+    condition = (
+      toset([for k, r in aws_vpc_security_group_ingress_rule.alb_public : "${r.from_port}/${r.cidr_ipv4}"]) == toset(["80/0.0.0.0/0", "443/0.0.0.0/0"]) &&
+      alltrue([for r in aws_vpc_security_group_ingress_rule.alb_public : r.security_group_id == aws_security_group.alb.id && r.from_port == r.to_port])
+    )
+    error_message = "public alb: only 80 and 443 from the internet"
   }
   assert {
     condition     = aws_vpc_security_group_ingress_rule.task_from_alb.referenced_security_group_id == aws_security_group.alb.id && aws_vpc_security_group_ingress_rule.task_from_alb.from_port == 8080 && aws_vpc_security_group_ingress_rule.task_from_alb.security_group_id == aws_security_group.task.id
     error_message = "task ingress only from alb on 8080"
   }
   assert {
+    condition     = aws_vpc_security_group_ingress_rule.web_from_alb.referenced_security_group_id == aws_security_group.alb.id && aws_vpc_security_group_ingress_rule.web_from_alb.from_port == 80 && aws_vpc_security_group_ingress_rule.web_from_alb.security_group_id == aws_security_group.web.id
+    error_message = "web (nginx) ingress only from alb on 80"
+  }
+  assert {
     condition     = aws_vpc_security_group_ingress_rule.db_from_task.referenced_security_group_id == aws_security_group.task.id && aws_vpc_security_group_ingress_rule.db_from_task.from_port == 5432 && aws_vpc_security_group_ingress_rule.db_from_task.security_group_id == aws_security_group.db.id
     error_message = "db ingress only from task on 5432"
   }
   assert {
-    condition     = alltrue([for r in [aws_vpc_security_group_ingress_rule.alb_from_cloudfront, aws_vpc_security_group_ingress_rule.task_from_alb, aws_vpc_security_group_ingress_rule.db_from_task] : r.cidr_ipv4 == null])
-    error_message = "no cidr-based ingress"
+    condition     = alltrue([for r in [aws_vpc_security_group_ingress_rule.task_from_alb, aws_vpc_security_group_ingress_rule.web_from_alb, aws_vpc_security_group_ingress_rule.db_from_task] : r.cidr_ipv4 == null])
+    error_message = "tasks and database are not reachable from the internet"
   }
   # AWS acceptă în descrieri doar a-zA-Z0-9. _-:/()#,@[]+=&;{}!$* (fără „>”).
   assert {
     condition = alltrue([for d in concat(
-      [aws_vpc_security_group_ingress_rule.alb_from_cloudfront.description, aws_vpc_security_group_ingress_rule.task_from_alb.description, aws_vpc_security_group_ingress_rule.db_from_task.description],
+      [for r in aws_vpc_security_group_ingress_rule.alb_public : r.description],
+      [aws_vpc_security_group_ingress_rule.task_from_alb.description, aws_vpc_security_group_ingress_rule.web_from_alb.description, aws_vpc_security_group_ingress_rule.db_from_task.description],
       [for r in aws_vpc_security_group_egress_rule.all : r.description],
-      [aws_security_group.alb.description, aws_security_group.task.description, aws_security_group.db.description],
+      [aws_security_group.alb.description, aws_security_group.task.description, aws_security_group.web.description, aws_security_group.db.description],
     ) : can(regex("^[a-zA-Z0-9. _\\-:/()#,@\\[\\]+=&;{}!$*]*$", d))])
     error_message = "security group descriptions use only characters AWS accepts"
   }

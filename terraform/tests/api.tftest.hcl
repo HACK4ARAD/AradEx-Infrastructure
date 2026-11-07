@@ -9,6 +9,9 @@ mock_provider "aws" {
   mock_resource "aws_lb_target_group" {
     defaults = { arn = "arn:aws:elasticloadbalancing:eu-north-1:712710404828:targetgroup/aradex-api/0123456789abcdef", arn_suffix = "targetgroup/aradex-api/0123456789abcdef" }
   }
+  mock_resource "aws_lb_listener" {
+    defaults = { arn = "arn:aws:elasticloadbalancing:eu-north-1:712710404828:listener/app/aradex-api/0123456789abcdef/fedcba9876543210" }
+  }
   mock_resource "aws_ecs_task_definition" {
     defaults = { arn = "arn:aws:ecs:eu-north-1:712710404828:task-definition/aradex-api:1" }
   }
@@ -33,6 +36,8 @@ variables {
   openai_secret_arn   = "arn:aws:secretsmanager:eu-north-1:712710404828:secret:aradex/openai"
   domain_name         = "aradex.example"
   desired_count       = 0
+  enable_https        = true
+  certificate_arn     = "arn:aws:acm:eu-north-1:712710404828:certificate/mock"
 }
 
 run "api" {
@@ -58,7 +63,7 @@ run "api" {
     error_message = "container name/port/image"
   }
   assert {
-    condition     = local.env["SPRING_PROFILES_ACTIVE"] == "prod" && local.env["OPENAI_MODEL"] == "gpt-4o-mini" && local.env["CORS_ORIGINS"] == "https://aradex.example"
+    condition     = local.env["SPRING_PROFILES_ACTIVE"] == "prod" && local.env["OPENAI_MODEL"] == "gpt-4o-mini" && local.env["CORS_ORIGINS"] == "https://aradex.example,http://localhost"
     error_message = "container env"
   }
   # Review Focus 5: RDS are rds.force_ssl=1.
@@ -96,12 +101,53 @@ run "api" {
     error_message = "cluster name"
   }
   assert {
-    condition     = aws_lb.api.internal && aws_lb.api.subnets == toset(["subnet-iso-a", "subnet-iso-b"]) && aws_lb.api.security_groups == toset(["sg-alb"])
-    error_message = "internal alb in isolated subnets"
+    condition     = !aws_lb.api.internal && aws_lb.api.subnets == toset(["subnet-pub-a", "subnet-pub-b"]) && aws_lb.api.security_groups == toset(["sg-alb"])
+    error_message = "public alb in public subnets"
   }
   assert {
-    condition     = aws_lb_listener.http.port == 80 && aws_lb_listener.http.protocol == "HTTP" && aws_lb_listener.http.default_action[0].target_group_arn == aws_lb_target_group.api.arn
-    error_message = "listener 80 -> tg"
+    condition = (
+      aws_lb_listener.http.port == 80 && aws_lb_listener.http.protocol == "HTTP" &&
+      aws_lb_listener.http.default_action[0].type == "redirect" &&
+      aws_lb_listener.http.default_action[0].redirect[0].protocol == "HTTPS" &&
+      aws_lb_listener.http.default_action[0].redirect[0].port == "443" &&
+      aws_lb_listener.http.default_action[0].redirect[0].status_code == "HTTP_301"
+    )
+    error_message = "http redirects to https"
+  }
+  assert {
+    condition = (
+      aws_lb_listener.https[0].port == 443 && aws_lb_listener.https[0].protocol == "HTTPS" &&
+      aws_lb_listener.https[0].certificate_arn == var.certificate_arn &&
+      aws_lb_listener.https[0].ssl_policy == "ELBSecurityPolicy-TLS13-1-2-2021-06" &&
+      aws_lb_listener.https[0].default_action[0].type == "forward" &&
+      aws_lb_listener.https[0].default_action[0].target_group_arn == aws_lb_target_group.web[0].arn
+    )
+    error_message = "https listener: everything else goes to the web (nginx) target group"
+  }
+  assert {
+    condition = (
+      aws_lb_target_group.web[0].name == "aradex-web" && aws_lb_target_group.web[0].port == 80 && aws_lb_target_group.web[0].target_type == "ip" &&
+      aws_lb_target_group.web[0].health_check[0].path == "/healthz"
+    )
+    error_message = "web target group with /healthz"
+  }
+  # Review Focus 1/2: API-ul rămâne la Spring (erori JSON, Authorization, toate metodele) — doar rutare pe path.
+  assert {
+    condition = (
+      aws_lb_listener_rule.api[0].priority == 10 &&
+      aws_lb_listener_rule.api[0].action[0].target_group_arn == aws_lb_target_group.api.arn &&
+      toset(one(one(aws_lb_listener_rule.api[0].condition).path_pattern).values) == toset(["/api/*", "/swagger-ui*", "/v3/api-docs*"])
+    )
+    error_message = "api paths go to the api target group"
+  }
+  assert {
+    condition = (
+      aws_lb_listener_rule.www[0].priority == 1 &&
+      toset(one(one(aws_lb_listener_rule.www[0].condition).host_header).values) == toset(["www.aradex.example"]) &&
+      aws_lb_listener_rule.www[0].action[0].redirect[0].host == "aradex.example" &&
+      aws_lb_listener_rule.www[0].action[0].redirect[0].status_code == "HTTP_301"
+    )
+    error_message = "www redirects to apex"
   }
   assert {
     condition     = aws_lb_target_group.api.port == 8080 && aws_lb_target_group.api.target_type == "ip" && aws_lb_target_group.api.deregistration_delay == "10"
@@ -136,11 +182,17 @@ run "cors_fallback_without_domain" {
     source = "./modules/api"
   }
   variables {
-    domain_name = ""
+    domain_name     = ""
+    enable_https    = false
+    certificate_arn = null
   }
   assert {
     condition     = local.env["CORS_ORIGINS"] == "http://localhost:5173"
     error_message = "cors fallback"
+  }
+  assert {
+    condition     = length(aws_lb_listener.https) == 0 && length(aws_lb_target_group.web) == 0 && aws_lb_listener.http.default_action[0].type == "forward" && aws_lb_listener.http.default_action[0].target_group_arn == aws_lb_target_group.api.arn
+    error_message = "without a domain: plain http straight to the api"
   }
 }
 

@@ -5,6 +5,14 @@
 - **Revizia 2 (7 nov):** infrastructura se scrie în Terraform, nu în CDK, la cererea lui Zoltan.
 - **Revizia 3 (7 nov):** contul are cota CodeBuild „Concurrently running builds” = 0 pentru toate mediile, deci CodePipeline/CodeBuild nu pot rula. La cererea lui Zoltan, **deploy-ul trece pe GitHub Actions cu OIDC**, iar **Fargate trece pe x86_64** (runner-ele GitHub gratuite sunt x86; build nativ cu `Dockerfile`-ul existent). Diferențele sunt în §1, §3, §4, §5, §6, §7, §8, §10.
 - **Revizia 4 (7 nov, la deploy):** organizația AWS a contului (SCP `p-wpt9usyn`) interzice `iam:CreateOpenIDConnectProvider` și permite doar regiunile `eu-north-1` și `us-east-1`. În loc de OIDC: modulul `github_deploy` creează utilizatorii IAM `aradex-gha-backend` și `aradex-gha-frontend` (`force_destroy`), cu aceleași permisiuni. Cheile le creează `scripts/github-keys.sh` direct în secretele repo-urilor (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`), deci nu ajung în Terraform, git sau chat. Se șterg la `terraform destroy`.
+- **Revizia 5 (7 nov, la deploy):** AWS refuză crearea distribuției CloudFront („Your account must be verified before you can add new CloudFront resources”, cere caz la AWS Support). La decizia lui Zoltan **renunțăm la CloudFront**:
+  - **ALB-ul devine public**, cu HTTPS (certificat ACM în `eu-north-1`, politica `ELBSecurityPolicy-TLS13-1-2-2021-06`) pe `aradexperience.site`.
+  - **Rute și redirecturi:** HTTP → HTTPS (301), `www` → apex (301), `/api/*`, `/swagger-ui*`, `/v3/api-docs*` → API, restul → **PWA servit de nginx** (modulul nou `web`: ECR `aradex-web`, serviciul Fargate `aradex-web` 0,25 vCPU / 512 MB, target group cu `/healthz`).
+  - **nginx:** face fallback-ul SPA (`try_files … /index.html`) și header-ele de cache (`index.html`, `sw.js`, manifestul fără cache; `assets/` imutabile). Erorile API rămân JSON, pentru că `/api/*` nu trece prin nginx.
+  - **Ce dispare:** bucket-ul S3, OAC, CloudFront Function, VPC origin și certificatul din `us-east-1`. Zona Route 53 rămâne aceeași, deci nameserverele de la registrar nu se schimbă.
+  - **Workflow-ul FE** construiește imaginea nginx din `deploy/Dockerfile` + `deploy/nginx.conf` (fișiere noi în `AradEx-Frontend`) și face deploy ECS; din SSM citește doar `/aradex/web/api_url`.
+  - **Expunere:** ALB-ul e expus pe internet doar pe 80 și 443; taskurile și baza de date rămân accesibile doar din ALB, respectiv din API.
+  - **Cost:** în plus ~0,5 $/zi (taskul nginx + IP-urile publice ale ALB-ului). Fără CDN, irelevant pentru demo.
 
 ## 1. Scop și constrângeri
 

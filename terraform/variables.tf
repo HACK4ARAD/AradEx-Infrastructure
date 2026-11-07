@@ -30,6 +30,17 @@ variable "api_desired_count" {
   }
 }
 
+variable "web_desired_count" {
+  description = "Câte taskuri nginx (PWA) rulează: 0 până există o imagine în ECR aradex-web, apoi 1."
+  type        = number
+  default     = 0
+
+  validation {
+    condition     = contains([0, 1], var.web_desired_count)
+    error_message = "web_desired_count trebuie să fie 0 sau 1."
+  }
+}
+
 variable "github_owner" {
   description = "Organizația GitHub cu repo-urile de cod."
   type        = string

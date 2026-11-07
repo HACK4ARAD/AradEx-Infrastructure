@@ -41,24 +41,25 @@ variable "enable_frontend" {
   type        = bool
 }
 
-variable "bucket_name" {
+variable "web_ecr_repository_arn" {
   type    = string
   default = null
 }
 
-variable "bucket_arn" {
+variable "web_service_name" {
   type    = string
   default = null
 }
 
-variable "distribution_id" {
+variable "web_task_execution_role_arn" {
   type    = string
   default = null
 }
 
-variable "distribution_arn" {
-  type    = string
-  default = null
+variable "web_task_role_arn" {
+  description = "Rolul aplicației web (nginx nu are; poate fi null)."
+  type        = string
+  default     = null
 }
 
 variable "api_url" {

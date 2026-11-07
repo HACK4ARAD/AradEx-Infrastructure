@@ -19,12 +19,12 @@ output "site_url" {
   value = one(module.edge[*].site_url)
 }
 
-output "bucket_name" {
-  value = one(module.edge[*].bucket_name)
+output "web_ecr_repository_url" {
+  value = one(module.web[*].ecr_repository_url)
 }
 
-output "distribution_id" {
-  value = one(module.edge[*].distribution_id)
+output "alb_dns_name" {
+  value = module.api.alb_dns_name
 }
 
 output "gha_backend_user" {

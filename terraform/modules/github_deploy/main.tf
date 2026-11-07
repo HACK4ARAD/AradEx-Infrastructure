@@ -3,9 +3,11 @@
 # secretele GitHub ale repo-ului. force_destroy le șterge la `terraform destroy`.
 
 locals {
-  account     = "712710404828"
-  region      = "eu-north-1"
-  service_arn = "arn:aws:ecs:${local.region}:${local.account}:service/${var.cluster_name}/${var.service_name}"
+  account         = "712710404828"
+  region          = "eu-north-1"
+  service_arn     = "arn:aws:ecs:${local.region}:${local.account}:service/${var.cluster_name}/${var.service_name}"
+  web_service_arn = "arn:aws:ecs:${local.region}:${local.account}:service/${var.cluster_name}/${coalesce(var.web_service_name, "none")}"
+  web_task_roles  = compact([var.web_task_execution_role_arn, var.web_task_role_arn])
 
   # Statement-urile pe Sid (folosite și de teste).
   backend_stmt  = { for st in jsondecode(aws_iam_user_policy.backend.policy).Statement : st.Sid => st }
@@ -64,7 +66,7 @@ resource "aws_iam_user_policy" "backend" {
   })
 }
 
-# --- Frontend: fișiere în S3 + invalidare CloudFront (doar cu domeniu) ---------
+# --- Frontend: imagine nginx în ECR + deploy pe serviciul web (doar cu domeniu) -------
 
 resource "aws_iam_user" "frontend" {
   count         = var.enable_frontend ? 1 : 0
@@ -80,22 +82,38 @@ resource "aws_iam_user_policy" "frontend" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "SiteList"
+        Sid      = "EcrAuth"
         Effect   = "Allow"
-        Action   = "s3:ListBucket"
-        Resource = var.bucket_arn
+        Action   = "ecr:GetAuthorizationToken"
+        Resource = "*"
       },
       {
-        Sid      = "SiteObjects"
-        Effect   = "Allow"
-        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-        Resource = "${var.bucket_arn}/*"
+        Sid    = "EcrPush"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability", "ecr:BatchGetImage", "ecr:CompleteLayerUpload",
+          "ecr:GetDownloadUrlForLayer", "ecr:InitiateLayerUpload", "ecr:PutImage", "ecr:UploadLayerPart",
+        ]
+        Resource = var.web_ecr_repository_arn
       },
       {
-        Sid      = "Invalidate"
+        Sid      = "EcsTaskDef"
         Effect   = "Allow"
-        Action   = ["cloudfront:CreateInvalidation", "cloudfront:GetInvalidation"]
-        Resource = var.distribution_arn
+        Action   = ["ecs:DescribeTaskDefinition", "ecs:RegisterTaskDefinition"]
+        Resource = "*"
+      },
+      {
+        Sid      = "EcsService"
+        Effect   = "Allow"
+        Action   = ["ecs:DescribeServices", "ecs:UpdateService"]
+        Resource = local.web_service_arn
+      },
+      {
+        Sid       = "PassTaskRoles"
+        Effect    = "Allow"
+        Action    = "iam:PassRole"
+        Resource  = local.web_task_roles
+        Condition = { StringEquals = { "iam:PassedToService" = "ecs-tasks.amazonaws.com" } }
       },
       {
         Sid      = "Config"
@@ -107,14 +125,10 @@ resource "aws_iam_user_policy" "frontend" {
   })
 }
 
-# Configurația workflow-ului FE: repo-ul FE nu conține domeniu sau ID-uri hardcodate.
+# Configurația workflow-ului FE: repo-ul FE nu conține domeniul hardcodat.
 resource "aws_ssm_parameter" "web" {
-  for_each = var.enable_frontend ? {
-    bucket          = var.bucket_name
-    distribution_id = var.distribution_id
-    api_url         = var.api_url
-  } : {}
-  name  = "/aradex/web/${each.key}"
-  type  = "String"
-  value = each.value
+  for_each = var.enable_frontend ? { api_url = var.api_url } : {}
+  name     = "/aradex/web/${each.key}"
+  type     = "String"
+  value    = each.value
 }

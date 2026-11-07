@@ -18,6 +18,26 @@ output "alb_arn" {
   value = aws_lb.api.arn
 }
 
+output "cluster_arn" {
+  value = aws_ecs_cluster.this.arn
+}
+
+output "alb_zone_id" {
+  value = aws_lb.api.zone_id
+}
+
+output "web_target_group_arn" {
+  value = one(aws_lb_target_group.web[*].arn)
+}
+
+output "web_target_group_arn_suffix" {
+  value = one(aws_lb_target_group.web[*].arn_suffix)
+}
+
+output "https_listener_arn" {
+  value = one(aws_lb_listener.https[*].arn)
+}
+
 output "alb_dns_name" {
   value = aws_lb.api.dns_name
 }

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+ #!/usr/bin/env bash
 # Pune cheia OpenAI în Secrets Manager (aradex/openai) și repornește API-ul ca s-o citească.
 # Cheia se tastează (nu apare pe ecran, în argumente sau în istoricul shell-ului).
 set -euo pipefail

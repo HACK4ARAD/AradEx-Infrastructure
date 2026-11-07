@@ -1,4 +1,5 @@
-# ECR + Fargate (x86_64, 1 task) în spatele unui ALB intern. CloudFront ajunge la ALB prin VPC origin (modulul edge).
+# ECR + Fargate (x86_64, 1 task) în spatele ALB-ului public. Cu domeniu: HTTPS pe ALB, /api/* aici, restul la PWA
+# (target group-ul web e tot aici; serviciul nginx e în modulul web).
 
 locals {
   container_name = "api"
@@ -13,7 +14,8 @@ locals {
     environment = [
       { name = "SPRING_PROFILES_ACTIVE", value = "prod" },
       { name = "OPENAI_MODEL", value = "gpt-4o-mini" },
-      { name = "CORS_ORIGINS", value = var.domain_name != "" ? "https://${var.domain_name}" : "http://localhost:5173" },
+      # http://localhost = originea aplicației Android (Capacitor), care apelează API-ul de producție.
+      { name = "CORS_ORIGINS", value = var.domain_name != "" ? "https://${var.domain_name},http://localhost" : "http://localhost:5173" },
       # RDS are rds.force_ssl=1, deci conexiunea trebuie să ceară SSL.
       { name = "POSTGRES_URL", value = "jdbc:postgresql://${var.db_endpoint}:5432/aradexperience?sslmode=require" },
     ]
@@ -89,9 +91,10 @@ resource "aws_ecs_task_definition" "api" {
 resource "aws_lb" "api" {
   name               = "aradex-api"
   load_balancer_type = "application"
-  internal           = true
-  subnets            = var.isolated_subnet_ids
+  internal           = false
+  subnets            = var.public_subnet_ids
   security_groups    = [var.alb_sg_id]
+  idle_timeout       = 60 # apelurile AI pot dura zeci de secunde
 }
 
 resource "aws_lb_target_group" "api" {
@@ -111,12 +114,103 @@ resource "aws_lb_target_group" "api" {
   }
 }
 
+# Cu domeniu: HTTP -> HTTPS. Fără domeniu: HTTP direct spre API (doar pentru testare).
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.api.arn
   port              = 80
   protocol          = "HTTP"
 
+  dynamic "default_action" {
+    for_each = var.enable_https ? [1] : []
+    content {
+      type = "redirect"
+      redirect {
+        protocol    = "HTTPS"
+        port        = "443"
+        status_code = "HTTP_301"
+      }
+    }
+  }
+
+  dynamic "default_action" {
+    for_each = var.enable_https ? [] : [1]
+    content {
+      type             = "forward"
+      target_group_arn = aws_lb_target_group.api.arn
+    }
+  }
+}
+
+resource "aws_lb_listener" "https" {
+  count             = var.enable_https ? 1 : 0
+  load_balancer_arn = aws_lb.api.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = var.certificate_arn
+
+  # Implicit: PWA-ul (nginx). Rutele SPA, fișierele statice și cache-ul le gestionează nginx.
   default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.web[0].arn
+  }
+}
+
+# Ținta PWA-ului (serviciul nginx din modulul web se înregistrează aici). Stă lângă ALB ca rutarea să fie într-un loc.
+resource "aws_lb_target_group" "web" {
+  count                = var.enable_https ? 1 : 0
+  name                 = "aradex-web"
+  port                 = 80
+  protocol             = "HTTP"
+  target_type          = "ip"
+  vpc_id               = var.vpc_id
+  deregistration_delay = "10"
+
+  health_check {
+    path                = "/healthz"
+    interval            = 15
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    matcher             = "200"
+  }
+}
+
+# www -> domeniul principal (același path și query).
+resource "aws_lb_listener_rule" "www" {
+  count        = var.enable_https ? 1 : 0
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 1
+
+  condition {
+    host_header {
+      values = ["www.${var.domain_name}"]
+    }
+  }
+
+  action {
+    type = "redirect"
+    redirect {
+      host        = var.domain_name
+      protocol    = "HTTPS"
+      port        = "443"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+# API + Swagger la Spring: erorile rămân ProblemDetail JSON, Authorization/body/toate metodele trec neschimbate.
+resource "aws_lb_listener_rule" "api" {
+  count        = var.enable_https ? 1 : 0
+  listener_arn = aws_lb_listener.https[0].arn
+  priority     = 10
+
+  condition {
+    path_pattern {
+      values = ["/api/*", "/swagger-ui*", "/v3/api-docs*"]
+    }
+  }
+
+  action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.api.arn
   }
@@ -152,5 +246,5 @@ resource "aws_ecs_service" "api" {
     container_port   = local.container_port
   }
 
-  depends_on = [aws_lb_listener.http, aws_iam_service_linked_role.ecs]
+  depends_on = [aws_lb_listener.http, aws_lb_listener_rule.api, aws_iam_service_linked_role.ecs]
 }
