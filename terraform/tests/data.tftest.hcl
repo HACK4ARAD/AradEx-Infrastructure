@@ -77,6 +77,15 @@ run "data" {
     condition     = jsonencode(sort(keys(jsondecode(nonsensitive(aws_secretsmanager_secret_version.twilio.secret_string))))) == jsonencode(["account_sid", "auth_token", "verify_service_sid"])
     error_message = "twilio secret placeholder keys"
   }
+  # T24: tokenul gateway-ului de SMS (Mac + iPhone); gol până îl pune AradEx-Ops/sms-gateway/setup.sh.
+  assert {
+    condition     = aws_secretsmanager_secret.sms_gateway.name == "aradex/sms-gateway" && aws_secretsmanager_secret.sms_gateway.recovery_window_in_days == 0
+    error_message = "sms gateway secret"
+  }
+  assert {
+    condition     = jsonencode(jsondecode(nonsensitive(aws_secretsmanager_secret_version.sms_gateway.secret_string))) == jsonencode({ token = "" })
+    error_message = "sms gateway secret placeholder"
+  }
   assert {
     condition     = aws_secretsmanager_secret.jwt.recovery_window_in_days == 0 && aws_secretsmanager_secret.anthropic.recovery_window_in_days == 0
     error_message = "immediate secret deletion"
