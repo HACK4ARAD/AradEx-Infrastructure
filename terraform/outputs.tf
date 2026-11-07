@@ -26,3 +26,8 @@ output "bucket_name" {
 output "distribution_id" {
   value = one(module.edge[*].distribution_id)
 }
+
+output "connection_arn" {
+  description = "Conexiunea GitHub (PENDING până o activezi din consolă)."
+  value       = one(module.pipelines[*].connection_arn)
+}

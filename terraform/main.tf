@@ -38,3 +38,23 @@ module "edge" {
   alb_arn      = module.api.alb_arn
   alb_dns_name = module.api.alb_dns_name
 }
+
+module "pipelines" {
+  source                  = "./modules/pipelines"
+  count                   = local.has_domain ? 1 : 0
+  github_owner            = var.github_owner
+  backend_repo            = var.backend_repo
+  frontend_repo           = var.frontend_repo
+  branch                  = var.branch
+  domain_name             = var.domain_name
+  ecr_repository_url      = module.api.ecr_repository_url
+  ecr_repository_arn      = module.api.ecr_repository_arn
+  cluster_name            = module.api.cluster_name
+  service_name            = module.api.service_name
+  task_execution_role_arn = module.api.task_execution_role_arn
+  task_role_arn           = module.api.task_role_arn
+  bucket_name             = module.edge[0].bucket_name
+  bucket_arn              = module.edge[0].bucket_arn
+  distribution_id         = module.edge[0].distribution_id
+  distribution_arn        = module.edge[0].distribution_arn
+}
