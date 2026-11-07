@@ -46,6 +46,15 @@ run "network" {
     condition     = alltrue([for r in [aws_vpc_security_group_ingress_rule.alb_from_cloudfront, aws_vpc_security_group_ingress_rule.task_from_alb, aws_vpc_security_group_ingress_rule.db_from_task] : r.cidr_ipv4 == null])
     error_message = "no cidr-based ingress"
   }
+  # AWS acceptă în descrieri doar a-zA-Z0-9. _-:/()#,@[]+=&;{}!$* (fără „>”).
+  assert {
+    condition = alltrue([for d in concat(
+      [aws_vpc_security_group_ingress_rule.alb_from_cloudfront.description, aws_vpc_security_group_ingress_rule.task_from_alb.description, aws_vpc_security_group_ingress_rule.db_from_task.description],
+      [for r in aws_vpc_security_group_egress_rule.all : r.description],
+      [aws_security_group.alb.description, aws_security_group.task.description, aws_security_group.db.description],
+    ) : can(regex("^[a-zA-Z0-9. _\\-:/()#,@\\[\\]+=&;{}!$*]*$", d))])
+    error_message = "security group descriptions use only characters AWS accepts"
+  }
   assert {
     condition     = length(output.public_subnet_ids) == 2 && length(output.isolated_subnet_ids) == 2
     error_message = "subnet outputs"

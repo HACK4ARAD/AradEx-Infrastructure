@@ -33,6 +33,7 @@ run "defaults_ok" {
   command = plan
   variables {
     alert_email = "a@b.ro"
+    domain_name = ""
   }
   assert {
     condition     = var.github_owner == "HACK4ARAD" && var.backend_repo == "AradEx-Backend" && var.frontend_repo == "AradEx-Frontend"
@@ -48,6 +49,7 @@ run "no_domain" {
   command = plan
   variables {
     alert_email = "a@b.ro"
+    domain_name = ""
   }
   assert {
     condition     = length(module.edge) == 0

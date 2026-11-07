@@ -99,7 +99,7 @@ resource "aws_vpc_security_group_ingress_rule" "task_from_alb" {
   ip_protocol                  = "tcp"
   from_port                    = 8080
   to_port                      = 8080
-  description                  = "ALB -> API"
+  description                  = "ALB to API"
 }
 
 resource "aws_vpc_security_group_ingress_rule" "db_from_task" {
@@ -108,7 +108,7 @@ resource "aws_vpc_security_group_ingress_rule" "db_from_task" {
   ip_protocol                  = "tcp"
   from_port                    = 5432
   to_port                      = 5432
-  description                  = "API -> Postgres"
+  description                  = "API to Postgres"
 }
 
 # Ieșire liberă: taskul trebuie să ajungă la ECR, Secrets Manager, CloudWatch, OpenAI, OSRM.
