@@ -78,6 +78,11 @@ variable "twilio_secret_arn" {
   type        = string
 }
 
+variable "stripe_secret_arn" {
+  description = "Stripe test mode (T07): secret JSON cu secret_key și publishable_key, injectate ca STRIPE_* (goale = plata demonstrativă)."
+  type        = string
+}
+
 variable "sms_gateway_secret_arn" {
   description = "Gateway-ul de SMS (T24): secret JSON cu token, injectat ca SMS_GATEWAY_TOKEN (gol = gateway oprit)."
   type        = string
