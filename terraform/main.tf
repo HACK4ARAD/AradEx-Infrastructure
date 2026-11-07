@@ -58,3 +58,14 @@ module "pipelines" {
   distribution_id         = module.edge[0].distribution_id
   distribution_arn        = module.edge[0].distribution_arn
 }
+
+module "monitoring" {
+  source                  = "./modules/monitoring"
+  alert_email             = var.alert_email
+  api_desired_count       = var.api_desired_count
+  alb_arn_suffix          = module.api.alb_arn_suffix
+  target_group_arn_suffix = module.api.target_group_arn_suffix
+  cluster_name            = module.api.cluster_name
+  service_name            = module.api.service_name
+  pipeline_arns           = local.has_domain ? [module.pipelines[0].backend_pipeline_arn, module.pipelines[0].frontend_pipeline_arn] : []
+}

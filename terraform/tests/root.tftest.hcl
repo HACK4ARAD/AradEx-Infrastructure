@@ -43,3 +43,27 @@ run "defaults_ok" {
     error_message = "branch/count/domain defaults"
   }
 }
+
+run "no_domain" {
+  command = plan
+  variables {
+    alert_email = "a@b.ro"
+  }
+  assert {
+    condition     = length(module.edge) == 0 && length(module.pipelines) == 0
+    error_message = "edge and pipelines only with a domain"
+  }
+}
+
+run "with_domain" {
+  command = plan
+  variables {
+    alert_email       = "a@b.ro"
+    domain_name       = "aradex.example"
+    api_desired_count = 1
+  }
+  assert {
+    condition     = length(module.edge) == 1 && length(module.pipelines) == 1
+    error_message = "edge and pipelines exist with a domain"
+  }
+}
