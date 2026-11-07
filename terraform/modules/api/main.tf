@@ -1,4 +1,4 @@
-# ECR + Fargate (ARM, 1 task) în spatele unui ALB intern. CloudFront ajunge la ALB prin VPC origin (modulul edge).
+# ECR + Fargate (x86_64, 1 task) în spatele unui ALB intern. CloudFront ajunge la ALB prin VPC origin (modulul edge).
 
 locals {
   container_name = "api"
@@ -81,7 +81,7 @@ resource "aws_ecs_task_definition" "api" {
   container_definitions    = jsonencode(local.container_definitions)
 
   runtime_platform {
-    cpu_architecture        = "ARM64"
+    cpu_architecture        = "X86_64" # runner-ele GitHub gratuite sunt x86: build nativ
     operating_system_family = "LINUX"
   }
 }

@@ -50,8 +50,8 @@ run "api" {
     error_message = "keep last 10 images"
   }
   assert {
-    condition     = aws_ecs_task_definition.api.cpu == "512" && aws_ecs_task_definition.api.memory == "1024" && aws_ecs_task_definition.api.runtime_platform[0].cpu_architecture == "ARM64" && aws_ecs_task_definition.api.requires_compatibilities == toset(["FARGATE"])
-    error_message = "task 512/1024 ARM64 Fargate"
+    condition     = aws_ecs_task_definition.api.cpu == "512" && aws_ecs_task_definition.api.memory == "1024" && aws_ecs_task_definition.api.runtime_platform[0].cpu_architecture == "X86_64" && aws_ecs_task_definition.api.requires_compatibilities == toset(["FARGATE"])
+    error_message = "task 512/1024 X86_64 Fargate"
   }
   assert {
     condition     = local.container.name == "api" && local.container.portMappings[0].containerPort == 8080 && local.container.image == "712710404828.dkr.ecr.eu-north-1.amazonaws.com/aradex-api:latest"
