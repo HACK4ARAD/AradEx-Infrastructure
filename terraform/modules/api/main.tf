@@ -18,6 +18,9 @@ locals {
       { name = "CORS_ORIGINS", value = var.domain_name != "" ? "https://${var.domain_name},http://localhost" : "http://localhost:5173" },
       # RDS are rds.force_ssl=1, deci conexiunea trebuie să ceară SSL.
       { name = "POSTGRES_URL", value = "jdbc:postgresql://${var.db_endpoint}:5432/aradexperience?sslmode=require" },
+      # Pozele (media.tf). Cu domeniu, URL-ul public al pozelor e fix; fără domeniu API-ul îl ia din cererea curentă.
+      { name = "MEDIA_BUCKET", value = aws_s3_bucket.media.bucket },
+      { name = "MEDIA_PUBLIC_URL", value = var.domain_name != "" ? "https://${var.domain_name}/api/v1/media" : "" },
     ]
     secrets = [
       { name = "POSTGRES_USER", valueFrom = "${var.db_secret_arn}:username::" },
