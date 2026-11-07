@@ -25,6 +25,9 @@ locals {
       { name = "JWT_SECRET", valueFrom = var.jwt_secret_arn },
       { name = "ANTHROPIC_API_KEY", valueFrom = var.anthropic_secret_arn },
       { name = "GOOGLE_PLACES_API_KEY", valueFrom = var.google_places_secret_arn },
+      { name = "TWILIO_ACCOUNT_SID", valueFrom = "${var.twilio_secret_arn}:account_sid::" },
+      { name = "TWILIO_AUTH_TOKEN", valueFrom = "${var.twilio_secret_arn}:auth_token::" },
+      { name = "TWILIO_VERIFY_SERVICE_SID", valueFrom = "${var.twilio_secret_arn}:verify_service_sid::" },
     ]
     logConfiguration = {
       logDriver = "awslogs"

@@ -64,6 +64,19 @@ run "data" {
     condition     = aws_secretsmanager_secret.google_places.name == "aradex/google-places" && aws_secretsmanager_secret_version.google_places.secret_string == "REPLACE_ME" && aws_secretsmanager_secret.google_places.recovery_window_in_days == 0
     error_message = "google places key placeholder"
   }
+  # T21: Twilio Verify (SMS-ul OTP); JSON cu chei goale până le pune Zoltan cu scripts/set-twilio-keys.sh.
+  assert {
+    condition     = aws_secretsmanager_secret.twilio.name == "aradex/twilio"
+    error_message = "twilio secret name"
+  }
+  assert {
+    condition     = aws_secretsmanager_secret.twilio.recovery_window_in_days == 0
+    error_message = "twilio secret immediate deletion"
+  }
+  assert {
+    condition     = jsonencode(sort(keys(jsondecode(nonsensitive(aws_secretsmanager_secret_version.twilio.secret_string))))) == jsonencode(["account_sid", "auth_token", "verify_service_sid"])
+    error_message = "twilio secret placeholder keys"
+  }
   assert {
     condition     = aws_secretsmanager_secret.jwt.recovery_window_in_days == 0 && aws_secretsmanager_secret.anthropic.recovery_window_in_days == 0
     error_message = "immediate secret deletion"

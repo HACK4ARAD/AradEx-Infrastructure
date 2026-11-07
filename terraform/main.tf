@@ -24,6 +24,7 @@ module "api" {
   jwt_secret_arn           = module.data.jwt_secret_arn
   anthropic_secret_arn     = module.data.anthropic_secret_arn
   google_places_secret_arn = module.data.google_places_secret_arn
+  twilio_secret_arn        = module.data.twilio_secret_arn
   anthropic_model          = var.anthropic_model
   domain_name              = var.domain_name
   desired_count            = var.api_desired_count
