@@ -31,6 +31,7 @@ locals {
       { name = "TWILIO_ACCOUNT_SID", valueFrom = "${var.twilio_secret_arn}:account_sid::" },
       { name = "TWILIO_AUTH_TOKEN", valueFrom = "${var.twilio_secret_arn}:auth_token::" },
       { name = "TWILIO_VERIFY_SERVICE_SID", valueFrom = "${var.twilio_secret_arn}:verify_service_sid::" },
+      { name = "SMS_GATEWAY_TOKEN", valueFrom = "${var.sms_gateway_secret_arn}:token::" },
     ]
     logConfiguration = {
       logDriver = "awslogs"

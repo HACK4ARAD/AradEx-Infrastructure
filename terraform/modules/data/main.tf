@@ -117,3 +117,22 @@ resource "aws_secretsmanager_secret_version" "twilio" {
     ignore_changes = [secret_string]
   }
 }
+
+# T24: SMS-urile OTP trimise de pe telefonul lui Zoltan (Mac + iPhone, AradEx-Ops/sms-gateway). Tokenul cu care scriptul
+# de pe Mac ia SMS-urile din coada API-ului; îl generează și îl pune AradEx-Ops/sms-gateway/setup.sh. Gol = gateway oprit
+# (numerele reale merg prin Twilio).
+resource "aws_secretsmanager_secret" "sms_gateway" {
+  name                    = "aradex/sms-gateway"
+  description             = "Tokenul gateway-ului de SMS (T24): JSON {token} - îl pune AradEx-Ops/sms-gateway/setup.sh"
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "sms_gateway" {
+  secret_id     = aws_secretsmanager_secret.sms_gateway.id
+  secret_string = jsonencode({ token = "" })
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
+}
+
