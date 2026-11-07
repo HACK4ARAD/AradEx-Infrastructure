@@ -14,8 +14,8 @@ locals {
     environment = [
       { name = "SPRING_PROFILES_ACTIVE", value = "prod" },
       { name = "ANTHROPIC_MODEL", value = var.anthropic_model },
-      # http://localhost = originea aplicației Android (Capacitor), care apelează API-ul de producție.
-      { name = "CORS_ORIGINS", value = var.domain_name != "" ? "https://${var.domain_name},http://localhost" : "http://localhost:5173" },
+      # http://localhost = originea aplicației Android (Capacitor), capacitor://localhost = a aplicației iOS; ambele apelează API-ul de producție.
+      { name = "CORS_ORIGINS", value = var.domain_name != "" ? "https://${var.domain_name},http://localhost,capacitor://localhost" : "http://localhost:5173" },
       # RDS are rds.force_ssl=1, deci conexiunea trebuie să ceară SSL.
       { name = "POSTGRES_URL", value = "jdbc:postgresql://${var.db_endpoint}:5432/aradexperience?sslmode=require" },
       # Pozele (media.tf). Cu domeniu, URL-ul public al pozelor e fix; fără domeniu API-ul îl ia din cererea curentă.
