@@ -32,6 +32,9 @@ locals {
       { name = "TWILIO_AUTH_TOKEN", valueFrom = "${var.twilio_secret_arn}:auth_token::" },
       { name = "TWILIO_VERIFY_SERVICE_SID", valueFrom = "${var.twilio_secret_arn}:verify_service_sid::" },
       { name = "SMS_GATEWAY_TOKEN", valueFrom = "${var.sms_gateway_secret_arn}:token::" },
+      { name = "STRIPE_SECRET_KEY", valueFrom = "${var.stripe_secret_arn}:secret_key::" },
+      { name = "STRIPE_PUBLISHABLE_KEY", valueFrom = "${var.stripe_secret_arn}:publishable_key::" },
+      { name = "STRIPE_WEBHOOK_SECRET", valueFrom = "${var.stripe_secret_arn}:webhook_secret::" },
     ]
     logConfiguration = {
       logDriver = "awslogs"

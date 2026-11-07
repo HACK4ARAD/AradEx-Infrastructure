@@ -136,3 +136,20 @@ resource "aws_secretsmanager_secret_version" "sms_gateway" {
   }
 }
 
+# T25: plata biletelor cu cardul prin Stripe, DOAR în mod test (backend-ul refuză cheile live). Chei goale = plata demonstrativă;
+# le pune Zoltan cu scripts/set-stripe-keys.sh (sk_test_…, pk_test_…, whsec_… din Dashboard-ul Stripe, „Test mode”).
+resource "aws_secretsmanager_secret" "stripe" {
+  name                    = "aradex/stripe"
+  description             = "Stripe test mode (T25): secret_key, publishable_key, webhook_secret - se pun cu scripts/set-stripe-keys.sh"
+  recovery_window_in_days = 0
+}
+
+resource "aws_secretsmanager_secret_version" "stripe" {
+  secret_id     = aws_secretsmanager_secret.stripe.id
+  secret_string = jsonencode({ secret_key = "", publishable_key = "", webhook_secret = "" })
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
+}
+
