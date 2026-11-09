@@ -29,12 +29,12 @@ resource "aws_iam_role_policy" "execution_secrets" {
     Statement = [{
       Effect   = "Allow"
       Action   = "secretsmanager:GetSecretValue"
-      Resource = [var.db_secret_arn, var.jwt_secret_arn, var.anthropic_secret_arn, var.google_places_secret_arn, var.twilio_secret_arn, var.sms_gateway_secret_arn, var.stripe_secret_arn]
+      Resource = [var.db_secret_arn, var.jwt_secret_arn, var.anthropic_secret_arn, var.google_places_secret_arn, var.stripe_secret_arn]
     }]
   })
 }
 
-# Rolul aplicației: doar ECS Exec (depanare cu `aws ecs execute-command`).
+# Rolul aplicației: ECS Exec (depanare cu `aws ecs execute-command`) și emailurile prin SES (mai jos).
 resource "aws_iam_role" "task" {
   name               = "aradex-api-task"
   assume_role_policy = local.ecs_tasks_trust
@@ -54,6 +54,22 @@ resource "aws_iam_role_policy" "task_exec_command" {
         "ssmmessages:OpenDataChannel",
       ]
       Resource = "*"
+    }]
+  })
+}
+
+# „Am uitat parola”: API-ul trimite emailuri doar prin identitatea domeniului și doar de pe no-reply@<domeniu>.
+resource "aws_iam_role_policy" "task_send_email" {
+  count = var.enable_email ? 1 : 0
+  name  = "send-email"
+  role  = aws_iam_role.task.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Action    = "ses:SendEmail"
+      Resource  = var.ses_identity_arn
+      Condition = { StringEquals = { "ses:FromAddress" = local.mail_from_address } }
     }]
   })
 }

@@ -24,14 +24,6 @@ output "google_places_secret_arn" {
   value = aws_secretsmanager_secret.google_places.arn
 }
 
-output "twilio_secret_arn" {
-  value = aws_secretsmanager_secret.twilio.arn
-}
-
-output "sms_gateway_secret_arn" {
-  value = aws_secretsmanager_secret.sms_gateway.arn
-}
-
 output "stripe_secret_arn" {
   value = aws_secretsmanager_secret.stripe.arn
 }

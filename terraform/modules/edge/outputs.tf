@@ -11,3 +11,8 @@ output "certificate_arn" {
 output "site_url" {
   value = "https://${var.domain_name}"
 }
+
+output "ses_identity_arn" {
+  description = "Identitatea SES a domeniului: API-ul are voie să trimită doar de pe ea (no-reply@<domeniu>)."
+  value       = aws_sesv2_email_identity.domain.arn
+}

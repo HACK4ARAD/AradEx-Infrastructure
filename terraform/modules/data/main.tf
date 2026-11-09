@@ -100,24 +100,6 @@ resource "aws_secretsmanager_secret_version" "google_places" {
   }
 }
 
-# T21: Twilio Verify, SMS-ul cu codul OTP pentru conturile personale (numerele de demo 0799000xxx nu primesc SMS).
-# SMS-ul prin AWS (SNS / End User Messaging) e blocat de SCP-ul contului. JSON cu chei goale ca placeholder:
-# backend-ul răspunde 503 „SMS unavailable” până pune Zoltan valorile cu scripts/set-twilio-keys.sh.
-resource "aws_secretsmanager_secret" "twilio" {
-  name                    = "aradex/twilio"
-  description             = "Twilio Verify (T21): account_sid, auth_token, verify_service_sid - se pun cu scripts/set-twilio-keys.sh"
-  recovery_window_in_days = 0
-}
-
-resource "aws_secretsmanager_secret_version" "twilio" {
-  secret_id     = aws_secretsmanager_secret.twilio.id
-  secret_string = jsonencode({ account_sid = "", auth_token = "", verify_service_sid = "" })
-
-  lifecycle {
-    ignore_changes = [secret_string]
-  }
-}
-
 # T07 / T25: plata biletelor în modul de test Stripe. JSON cu chei goale ca placeholder: backend-ul face plata demonstrativă până pune
 # Zoltan cheile de test (sk_test_… / pk_test_…, opțional whsec_… pentru webhook) cu scripts/set-stripe-keys.sh. Cheile live sunt refuzate.
 resource "aws_secretsmanager_secret" "stripe" {
@@ -129,24 +111,6 @@ resource "aws_secretsmanager_secret" "stripe" {
 resource "aws_secretsmanager_secret_version" "stripe" {
   secret_id     = aws_secretsmanager_secret.stripe.id
   secret_string = jsonencode({ secret_key = "", publishable_key = "", webhook_secret = "" })
-
-  lifecycle {
-    ignore_changes = [secret_string]
-  }
-}
-
-# T24: SMS-urile OTP trimise de pe telefonul lui Zoltan (Mac + iPhone, AradEx-Ops/sms-gateway). Tokenul cu care scriptul
-# de pe Mac ia SMS-urile din coada API-ului; îl generează și îl pune AradEx-Ops/sms-gateway/setup.sh. Gol = gateway oprit
-# (numerele reale merg prin Twilio).
-resource "aws_secretsmanager_secret" "sms_gateway" {
-  name                    = "aradex/sms-gateway"
-  description             = "Tokenul gateway-ului de SMS (T24): JSON {token} - îl pune AradEx-Ops/sms-gateway/setup.sh"
-  recovery_window_in_days = 0
-}
-
-resource "aws_secretsmanager_secret_version" "sms_gateway" {
-  secret_id     = aws_secretsmanager_secret.sms_gateway.id
-  secret_string = jsonencode({ token = "" })
 
   lifecycle {
     ignore_changes = [secret_string]

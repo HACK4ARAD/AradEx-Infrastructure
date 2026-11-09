@@ -21,7 +21,7 @@ terraform/
   *.tf              root-ul: variabile, provider-e (eu-north-1 + us-east-1), backend S3, module
   modules/          network · data · api (ALB, listeneri, API) · web (nginx cu PWA-ul) · edge (zona DNS, certificat) · github_deploy (utilizatori IAM pentru GitHub Actions) · monitoring
   tests/            terraform test (mock-uri, fără credențiale)
-scripts/            set-anthropic-key.sh · set-google-places-key.sh · set-twilio-keys.sh · set-stripe-keys.sh · github-keys.sh · redeploy.sh · destroy.sh
+scripts/            set-anthropic-key.sh · set-google-places-key.sh · set-stripe-keys.sh · github-keys.sh · redeploy.sh · destroy.sh
 ```
 
 ### De la zero la live
@@ -43,7 +43,6 @@ Toate comenzile se dau din rădăcina repo-ului, cu `export AWS_PROFILE=aws-tool
    terraform -chdir=terraform apply phase1.tfplan
    ./scripts/set-anthropic-key.sh       # cheia Claude API (ANTHROPIC_API_KEY); modelul: anthropic_model, implicit claude-haiku-5-5
    ./scripts/set-google-places-key.sh   # opțional (T17): cheia Google Places API (New) → GOOGLE_PLACES_API_KEY
-   ./scripts/set-twilio-keys.sh         # T21: Twilio Verify (SMS-ul OTP pentru numerele reale) → TWILIO_*; fără ele, doar numerele de demo 0799000xxx merg
    ./scripts/set-stripe-keys.sh         # T25: Stripe DOAR în mod test (sk_test_/pk_test_/whsec_) → STRIPE_*; fără ele, biletele au plata demonstrativă
    ```
 4. **Domeniul.** După cumpărare, pune `domain_name = "<domeniu>"` în `terraform/terraform.tfvars`, apoi:

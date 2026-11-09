@@ -1,4 +1,21 @@
-mock_provider "aws" {}
+mock_provider "aws" {
+  # Tokenurile DKIM (modulul edge) sunt un bloc calculat: mock-ul nu le generează.
+  override_resource {
+    target = module.edge[0].aws_sesv2_email_identity.domain
+    values = {
+      dkim_signing_attributes = {
+        current_signing_key_length    = "RSA_2048_BIT"
+        domain_signing_private_key    = null
+        domain_signing_selector       = null
+        last_key_generation_timestamp = "2026-11-09T12:00:00Z"
+        next_signing_key_length       = "RSA_2048_BIT"
+        signing_attributes_origin     = "AWS_SES"
+        status                        = "PENDING"
+        tokens                        = ["tok1", "tok2", "tok3"]
+      }
+    }
+  }
+}
 mock_provider "aws" {
   alias = "us_east_1"
 }

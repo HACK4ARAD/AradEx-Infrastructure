@@ -73,17 +73,19 @@ variable "google_places_secret_arn" {
   type        = string
 }
 
-variable "twilio_secret_arn" {
-  description = "Twilio Verify (T21): secret JSON cu account_sid, auth_token, verify_service_sid, injectate ca TWILIO_*."
-  type        = string
-}
-
 variable "stripe_secret_arn" {
   description = "Stripe test mode (T07/T25): secret JSON cu secret_key și publishable_key, injectate ca STRIPE_* (goale = plata demonstrativă); webhook_secret injectat ca STRIPE_WEBHOOK_SECRET (webhook-ul din BE #28)."
   type        = string
 }
 
-variable "sms_gateway_secret_arn" {
-  description = "Gateway-ul de SMS (T24): secret JSON cu token, injectat ca SMS_GATEWAY_TOKEN (gol = gateway oprit)."
+variable "enable_email" {
+  description = "Emailurile prin SES (doar cu domeniu): MAIL_FROM în task + dreptul ses:SendEmail pe identitatea domeniului."
+  type        = bool
+  default     = false
+}
+
+variable "ses_identity_arn" {
+  description = "ARN-ul identității SES a domeniului (modulul edge); folosit doar cu enable_email."
   type        = string
+  default     = null
 }
