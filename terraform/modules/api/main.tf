@@ -2,9 +2,10 @@
 # (target group-ul web e tot aici; serviciul nginx e în modulul web).
 
 locals {
-  container_name = "api"
-  container_port = 8080
-  health_path    = "/api/v1/health"
+  mail_from_address = "no-reply@${var.domain_name}"
+  container_name    = "api"
+  container_port    = 8080
+  health_path       = "/api/v1/health"
 
   container_definitions = [{
     name         = local.container_name
@@ -21,6 +22,8 @@ locals {
       # Pozele (media.tf). Cu domeniu, URL-ul public al pozelor e fix; fără domeniu API-ul îl ia din cererea curentă.
       { name = "MEDIA_BUCKET", value = aws_s3_bucket.media.bucket },
       { name = "MEDIA_PUBLIC_URL", value = var.domain_name != "" ? "https://${var.domain_name}/api/v1/media" : "" },
+      # „Am uitat parola”: codul pleacă prin SES de pe no-reply@<domeniu> (edge/mail.tf); gol = emailurile doar în log.
+      { name = "MAIL_FROM", value = var.enable_email ? "AradExperience <${local.mail_from_address}>" : "" },
     ]
     secrets = [
       { name = "POSTGRES_USER", valueFrom = "${var.db_secret_arn}:username::" },
@@ -28,10 +31,6 @@ locals {
       { name = "JWT_SECRET", valueFrom = var.jwt_secret_arn },
       { name = "ANTHROPIC_API_KEY", valueFrom = var.anthropic_secret_arn },
       { name = "GOOGLE_PLACES_API_KEY", valueFrom = var.google_places_secret_arn },
-      { name = "TWILIO_ACCOUNT_SID", valueFrom = "${var.twilio_secret_arn}:account_sid::" },
-      { name = "TWILIO_AUTH_TOKEN", valueFrom = "${var.twilio_secret_arn}:auth_token::" },
-      { name = "TWILIO_VERIFY_SERVICE_SID", valueFrom = "${var.twilio_secret_arn}:verify_service_sid::" },
-      { name = "SMS_GATEWAY_TOKEN", valueFrom = "${var.sms_gateway_secret_arn}:token::" },
       { name = "STRIPE_SECRET_KEY", valueFrom = "${var.stripe_secret_arn}:secret_key::" },
       { name = "STRIPE_PUBLISHABLE_KEY", valueFrom = "${var.stripe_secret_arn}:publishable_key::" },
       # T25: semnătura webhook-ului Stripe (BE #28). Cheia webhook_secret trebuie să existe în secret (poate fi goală):

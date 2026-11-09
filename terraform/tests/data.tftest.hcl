@@ -64,28 +64,6 @@ run "data" {
     condition     = aws_secretsmanager_secret.google_places.name == "aradex/google-places" && aws_secretsmanager_secret_version.google_places.secret_string == "REPLACE_ME" && aws_secretsmanager_secret.google_places.recovery_window_in_days == 0
     error_message = "google places key placeholder"
   }
-  # T21: Twilio Verify (SMS-ul OTP); JSON cu chei goale până le pune Zoltan cu scripts/set-twilio-keys.sh.
-  assert {
-    condition     = aws_secretsmanager_secret.twilio.name == "aradex/twilio"
-    error_message = "twilio secret name"
-  }
-  assert {
-    condition     = aws_secretsmanager_secret.twilio.recovery_window_in_days == 0
-    error_message = "twilio secret immediate deletion"
-  }
-  assert {
-    condition     = jsonencode(sort(keys(jsondecode(nonsensitive(aws_secretsmanager_secret_version.twilio.secret_string))))) == jsonencode(["account_sid", "auth_token", "verify_service_sid"])
-    error_message = "twilio secret placeholder keys"
-  }
-  # T24: tokenul gateway-ului de SMS (Mac + iPhone); gol până îl pune AradEx-Ops/sms-gateway/setup.sh.
-  assert {
-    condition     = aws_secretsmanager_secret.sms_gateway.name == "aradex/sms-gateway" && aws_secretsmanager_secret.sms_gateway.recovery_window_in_days == 0
-    error_message = "sms gateway secret"
-  }
-  assert {
-    condition     = jsonencode(jsondecode(nonsensitive(aws_secretsmanager_secret_version.sms_gateway.secret_string))) == jsonencode({ token = "" })
-    error_message = "sms gateway secret placeholder"
-  }
   # T25: Stripe în mod test; chei goale până le pune Zoltan cu scripts/set-stripe-keys.sh.
   assert {
     condition     = aws_secretsmanager_secret.stripe.name == "aradex/stripe" && aws_secretsmanager_secret.stripe.recovery_window_in_days == 0
