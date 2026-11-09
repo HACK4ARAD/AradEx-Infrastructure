@@ -56,6 +56,8 @@ module "edge" {
   domain_name  = var.domain_name
   alb_dns_name = module.api.alb_dns_name
   alb_zone_id  = module.api.alb_zone_id
+
+  google_site_verification = var.google_site_verification
 }
 
 module "github_deploy" {
