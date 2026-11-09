@@ -35,9 +35,10 @@ mock_provider "aws" {
 }
 
 variables {
-  domain_name  = "aradex.example"
-  alb_dns_name = "aradex-api-123.eu-north-1.elb.amazonaws.com"
-  alb_zone_id  = "Z23TAZ7ZKVBDVR"
+  domain_name              = "aradex.example"
+  alb_dns_name             = "aradex-api-123.eu-north-1.elb.amazonaws.com"
+  alb_zone_id              = "Z23TAZ7ZKVBDVR"
+  google_site_verification = "google-site-verification=test-token"
 }
 
 run "edge" {
@@ -104,5 +105,9 @@ run "edge" {
   assert {
     condition     = aws_route53_record.dmarc.name == "_dmarc.aradex.example" && one(aws_route53_record.dmarc.records) == "v=DMARC1; p=none;"
     error_message = "DMARC record"
+  }
+  assert {
+    condition     = one(aws_route53_record.google_site_verification).name == "aradex.example" && one(aws_route53_record.google_site_verification).type == "TXT" && one(one(aws_route53_record.google_site_verification).records) == "google-site-verification=test-token"
+    error_message = "Google Search Console TXT on the apex"
   }
 }

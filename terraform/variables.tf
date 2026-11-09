@@ -70,3 +70,9 @@ variable "branch" {
   type        = string
   default     = "main"
 }
+
+variable "google_site_verification" {
+  description = "Codul Google Search Console pentru domeniu (google-site-verification=…), pus ca TXT pe apex; gol = fără înregistrare. Nu e secret."
+  type        = string
+  default     = ""
+}
