@@ -98,3 +98,9 @@ node --test terraform/modules/edge/functions/
 | `anthropic_model` | `claude-haiku-5-5` | modelul Claude pentru chat și planificator (`ANTHROPIC_MODEL`) |
 | `alert_email` | — | în `local.auto.tfvars`; alertele și bugetul |
 | `github_owner`, `backend_repo`, `frontend_repo`, `branch` | `HACK4ARAD`, `AradEx-Backend`, `AradEx-Frontend`, `main` | singurele repo-uri și branch care pot asuma rolurile OIDC |
+
+## Drepturi de autor
+
+© 2026 Echipa AradExperience (Hack4Arad 2026): ZOCZELI, LukasL2004, vaidaoctav, DamAndrei04. **Toate drepturile rezervate.** Codul e public doar ca să poată fi văzut; copierea, modificarea sau folosirea lui în alt proiect cer acordul nostru scris. Detalii în [LICENSE](LICENSE). Pozele (Wikimedia Commons), datele de transport (CTP Arad) și bibliotecile open source rămân sub licențele lor.
+
+*Copyright © 2026 the AradExperience team. All rights reserved — see [LICENSE](LICENSE).*
